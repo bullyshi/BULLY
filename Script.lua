@@ -227,6 +227,9 @@ local L = {
     }
 }
 
+-- ================== ПОКОЛЕНИЕ UI (глушит старые копии биндов при смене языка) ==================
+local UIGeneration = 0
+
 -- ================== ПЕРЕМЕННЫЕ ==================
 local PlayerSpeedEnabled = false
 local PlayerSpeed = 1.4
@@ -767,8 +770,6 @@ local function adoptClickTPKey(name)
     local ok, kc = pcall(function() return Enum.KeyCode[name] end)
     if not (ok and kc) then return end
 
-    -- Клавиша, заблокированная сбросом, принимается только если юзер
-    -- начал переназначение через квадратик (мы видели "...")
     if ClickTPDeadKey and name == ClickTPDeadKey and not ClickTPSawListening then
         return
     end
@@ -1415,6 +1416,20 @@ buildUI = function()
     if not ScriptActive then return end
     local t = L[Language]
 
+    -- Новое поколение UI. Старые копии библиотеки Rayfield (после смены языка)
+    -- всё ещё ловят нажатия клавиш и дёргают свои старые колбэки — из-за этого
+    -- бинд срабатывал дважды (вкл+выкл в один кадр = выглядел мёртвым).
+    UIGeneration = UIGeneration + 1
+    local myGen = UIGeneration
+
+    -- Обёртка: колбэк живёт только пока его поколение актуально
+    local function guard(cb)
+        return function(...)
+            if myGen ~= UIGeneration then return end
+            return cb(...)
+        end
+    end
+
     pcall(function()
         local old = getGuiParent():FindFirstChild("Rayfield")
         if old then old:Destroy() end
@@ -1483,7 +1498,7 @@ buildUI = function()
         Flag = "BindVFly",
         CurrentKeybind = "L",
         HoldToInteract = false,
-        Callback = function()
+        Callback = guard(function()
             local char = LocalPlayer.Character
             local hum = char and char:FindFirstChildOfClass("Humanoid")
             if hum and hum.SeatPart then
@@ -1494,21 +1509,21 @@ buildUI = function()
                     stopVFly()
                 end
             end
-        end
+        end)
     })
     VehicleTab:CreateKeybind({
         Name = t.BindUnstuckName,
         Flag = "BindUnstuck",
         CurrentKeybind = "R",
         HoldToInteract = false,
-        Callback = function()
+        Callback = guard(function()
             local remotes = ReplicatedStorage:FindFirstChild("__remotes")
             local vehicleService = remotes and remotes:FindFirstChild("VehicleService")
             local unstuckRemote = vehicleService and vehicleService:FindFirstChild("UnstuckVehicle")
             if unstuckRemote then
                 unstuckRemote:FireServer()
             end
-        end
+        end)
     })
     VehicleTab:CreateLabel(t.ShiftLockLabel)
 
@@ -1524,13 +1539,13 @@ buildUI = function()
         Flag = "BindAimbot",
         CurrentKeybind = "Q",
         HoldToInteract = false,
-        Callback = function()
+        Callback = guard(function()
             AimbotEnabled = not AimbotEnabled
             if not AimbotEnabled then CurrentTarget = nil end
             if UIRefs.AimbotToggle then
                 pcall(function() UIRefs.AimbotToggle:Set(AimbotEnabled) end)
             end
-        end
+        end)
     })
     CombatTab:CreateSlider({
         Name = t.Smoothness,
@@ -1599,12 +1614,12 @@ buildUI = function()
         Flag = "BindNoclip",
         CurrentKeybind = "N",
         HoldToInteract = false,
-        Callback = function()
+        Callback = guard(function()
             setNoclipState(not NoclipEnabled)
             if UIRefs.NoclipToggle then
                 pcall(function() UIRefs.NoclipToggle:Set(NoclipEnabled) end)
             end
-        end
+        end)
     })
 
     PlayerTab:CreateSection(t.TeleportSection)
@@ -1614,7 +1629,7 @@ buildUI = function()
         Flag = "BindClickTP",
         CurrentKeybind = "None",
         HoldToInteract = false,
-        Callback = makeClickTPCallback()
+        Callback = guard(makeClickTPCallback())
     })
     PlayerTab:CreateButton({
         Name = t.ClickTPReset,
@@ -1703,7 +1718,7 @@ buildUI = function()
         end
     })
 
-    -- ---------- Передача денег (обычная секция) ----------
+    -- ---------- Передача денег ----------
     FunctionsTab:CreateSection(t.TrackerSection)
 
     UIRefs.TargetDropdown = FunctionsTab:CreateDropdown({
@@ -1866,9 +1881,5 @@ switchLanguage = function(lang)
 end
 
 -- ================== СТАРТ ==================
-local ok, err = pcall(function()
-    Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
-end)
-if ok and Rayfield then
-    buildUI()
-end
+-- Библиотеку грузит сам buildUI — никаких двойных загрузок при старте
+buildUI()
