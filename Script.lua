@@ -40,8 +40,11 @@ local function getGuiParent()
     return game:GetService("CoreGui")
 end
 
--- ================== СОХРАНЕНИЕ ЯЗЫКА ==================
-local CONFIG_FILE = "BullySDRP_Config.json"
+-- ================== ФАЙЛЫ ==================
+local CONFIG_FILE    = "BullySDRP_Config.json"
+local AUTOLOAD_FILE  = "BullySDRP_AutoLoad.json"
+local CONFIGS_FOLDER = "BullySDRP/Configs"
+
 local ScriptActive = true
 local Language = "EN"
 
@@ -65,6 +68,23 @@ end
 
 loadLanguage()
 
+-- ================== ЗАЩИТА ОТ ДУБЛЕЙ ==================
+local function getEnv()
+    if type(getgenv) == "function" then
+        local ok, env = pcall(getgenv)
+        if ok and type(env) == "table" then return env end
+    end
+    return _G
+end
+
+local RUN_TOKEN = {}
+getEnv().BULLY_SDRP_RUN = RUN_TOKEN
+
+local function runDead()
+    if not ScriptActive then return true end
+    return getEnv().BULLY_SDRP_RUN ~= RUN_TOKEN
+end
+
 -- ================== ЛОКАЛИЗАЦИЯ ==================
 local L = {
     EN = {
@@ -82,6 +102,9 @@ local L = {
         AntiTip = "AntiTip",
         BindsSection = "Hotkeys (Binds)",
         ShiftLockLabel = "Vehicle Shift Lock — [RightShift]",
+
+        FlySection = "Vehicle Fly",
+        FlySpeed = "Fly Speed",
 
         AimbotSection = "Aimbot Settings",
         AimbotToggle = "Aimbot Enabled",
@@ -101,6 +124,8 @@ local L = {
         NoclipSection = "Noclip",
         NoclipToggle = "Noclip (walk through walls)",
         BindNoclipName = "Noclip Key",
+        NotifyNoclipOn = "Noclip enabled",
+        NotifyNoclipOff = "Noclip disabled",
 
         TeleportSection = "Click TP",
         BindClickTPName = "Click TP Key",
@@ -110,6 +135,7 @@ local L = {
 
         PlayersSection = "Players",
         PlayerEsp = "Player ESP",
+        EspDistance = "Nickname Distance (Studs)",
 
         DeletionSection = "Object Deletion",
         Gates = "Barriers",
@@ -145,6 +171,24 @@ local L = {
         BindUnstuckName = "Unstuck Vehicle",
 
         VFlyAutoOff = "Fly disabled (left the vehicle)",
+
+        ConfigSection = "Configs",
+        ConfigInfo = "Configs save: Vehicle SpeedHack, Fly Speed, Player SpeedHack, ESP (nick distance), Aimbot AND binds (Fly / Unstuck / Aimbot / Noclip / ClickTP). Jobs / object deletion / noclip state / click-TP state are NOT saved. No config = default settings.",
+        ConfigName = "Config Name",
+        ConfigPlaceholder = "Enter config name...",
+        SaveConfigBtn = "Save Config",
+        ConfigList = "Saved Configs",
+        LoadConfigBtn = "Load Config",
+        DeleteConfigBtn = "Delete Config",
+        AutoLoadConfig = "Autoload on inject",
+        AutoLoadNone = "(Off)",
+        NotifyConfigSaved = "Config saved: ",
+        NotifyConfigLoaded = "Config loaded: ",
+        NotifyConfigDeleted = "Config deleted",
+        NotifyConfigNameEmpty = "Enter a config name first",
+        NotifyConfigNotFound = "Config not found",
+        NotifyAutoLoadSet = "Autoload set: ",
+        NotifyAutoLoadOff = "Autoload disabled",
     },
     RU = {
         LoadingTitle = "Загрузка...",
@@ -161,6 +205,9 @@ local L = {
         AntiTip = "Анти-переворот",
         BindsSection = "Горячие клавиши",
         ShiftLockLabel = "Шифтлок в транспорте — [RightShift]",
+
+        FlySection = "Полёт машины",
+        FlySpeed = "Скорость полёта",
 
         AimbotSection = "Настройки аимбота",
         AimbotToggle = "Аимбот",
@@ -180,6 +227,8 @@ local L = {
         NoclipSection = "Ноуклип",
         NoclipToggle = "Ноуклип (сквозь стены)",
         BindNoclipName = "Клавиша ноуклипа",
+        NotifyNoclipOn = "Ноуклип включен",
+        NotifyNoclipOff = "Ноуклип выключен",
 
         TeleportSection = "Клик-ТП",
         BindClickTPName = "Клавиша клик-ТП",
@@ -189,6 +238,7 @@ local L = {
 
         PlayersSection = "Игроки",
         PlayerEsp = "ESP игроков",
+        EspDistance = "Дистанция ников (студы)",
 
         DeletionSection = "Удаление объектов",
         Gates = "Шлагбаумы",
@@ -224,10 +274,27 @@ local L = {
         BindUnstuckName = "Вернуть машину (от застревания)",
 
         VFlyAutoOff = "Полёт отключён (вы покинули транспорт)",
+
+        ConfigSection = "Конфиги",
+        ConfigInfo = "В конфиг сохраняется: спидхак машины, скорость полёта, спидхак игрока, ESP (дистанция ников), аимбот И бинды (Полёт / Анстак / Аимбот / Ноуклип / Клик-ТП). Авто-работа / удаление объектов / состояние ноуклипа / состояние клик-ТП НЕ сохраняются. Нет конфига — дефолтные настройки.",
+        ConfigName = "Имя конфига",
+        ConfigPlaceholder = "Введите имя конфига...",
+        SaveConfigBtn = "Сохранить конфиг",
+        ConfigList = "Сохранённые конфиги",
+        LoadConfigBtn = "Загрузить конфиг",
+        DeleteConfigBtn = "Удалить конфиг",
+        AutoLoadConfig = "Автозагрузка при инжекте",
+        AutoLoadNone = "(Выключено)",
+        NotifyConfigSaved = "Конфиг сохранён: ",
+        NotifyConfigLoaded = "Конфиг загружен: ",
+        NotifyConfigDeleted = "Конфиг удалён",
+        NotifyConfigNameEmpty = "Сначала введи имя конфига",
+        NotifyConfigNotFound = "Конфиг не найден",
+        NotifyAutoLoadSet = "Автозагрузка: ",
+        NotifyAutoLoadOff = "Автозагрузка выключена",
     }
 }
 
--- ================== ПОКОЛЕНИЕ UI (глушит старые копии биндов при смене языка) ==================
 local UIGeneration = 0
 
 -- ================== ПЕРЕМЕННЫЕ ==================
@@ -243,11 +310,11 @@ local VehicleAltSpeed = 200
 local VehicleAltRisky = false
 
 local EspEnabled = false
-local EspMaxDistance = 250
+local EspMaxDistance = 250  -- дистанция НИКОВ (слайдер 50-2000). Подсветка — без лимита
 local EspObjects = {}
 
 local VFlyEnabled = false
-local VFlySpeed = 45
+local VFlySpeed = 2 -- дефолт 2 (диапазон 1-6)
 local VFlyLoop = nil
 
 local VehicleShiftLockEnabled = false
@@ -274,10 +341,13 @@ local TrackerTargetName = ""
 local TrackerRuns = 1
 
 -- Клик-ТП
-local ClickTPKeyName = nil   -- по дефолту бинда НЕТ, юзер назначает сам (сохраняется Rayfield'ом)
-local HeldKeys = {}          -- карта физически зажатых клавиш
-local ClickTPDeadKey = nil   -- клавиша, заблокированная после сброса
-local ClickTPSawListening = false -- видели "..." в квадратике (юзер начал переназначать)
+local ClickTPKeyName = nil
+local HeldKeys = {}
+local ClickTPDeadKey = nil
+local ClickTPSawListening = false
+
+-- Бинды, загруженные из нашего конфига
+local ActiveBinds = nil
 
 local UIRefs = {
     Window = nil,
@@ -289,9 +359,31 @@ local UIRefs = {
     LangHolder = nil,
     EnBtn = nil,
     RuBtn = nil,
+    FlyKeybind = nil,
+    UnstuckKeybind = nil,
+    AimbotKeybind = nil,
+    NoclipKeybind = nil,
+    VehicleSpeedToggle = nil,
+    VehicleModeDropdown = nil,
+    VehicleSpeedSlider = nil,
+    AntiTipToggle = nil,
+    FlySpeedSlider = nil,
+    PlayerSpeedToggle = nil,
+    PlayerSpeedSlider = nil,
+    EspToggle = nil,
+    EspDistanceSlider = nil,
+    SmoothnessSlider = nil,
+    MaxDistSlider = nil,
+    PartDropdown = nil,
+    TeamCheckToggle = nil,
+    ShowFovToggle = nil,
+    FovRadiusSlider = nil,
+    ConfigDropdown = nil,
+    AutoLoadDropdown = nil,
+    SelectedConfig = nil,
 }
 
-local buildUI, switchLanguage, attachLangButtons
+local buildUI, switchLanguage, attachLangButtons, hardUnload
 
 -- ================== FOV КРУГ ==================
 local FovCircle = Drawing.new("Circle")
@@ -301,7 +393,7 @@ FovCircle.Filled = false
 FovCircle.Transparency = 1
 FovCircle.Visible = false
 
--- ================== ПОИСК МОДУЛЯ VEHICLEUTIL (в фоне) ==================
+-- ================== ПОИСК МОДУЛЯ VEHICLEUTIL ==================
 local VehicleUtil = nil
 task.spawn(function()
     local ok, module = pcall(function()
@@ -490,6 +582,7 @@ local function getClosestPlayer()
 end
 
 AimbotLoop = RunService.RenderStepped:Connect(function()
+    if runDead() then return end
     local mousePos = UserInputService:GetMouseLocation()
     FovCircle.Position = mousePos
     FovCircle.Radius = AimbotFovRadius
@@ -511,6 +604,8 @@ AimbotLoop = RunService.RenderStepped:Connect(function()
 end)
 
 -- ================== ESP ==================
+-- Подсветка (Highlight) — БЕЗ ограничения дистанции.
+-- Слайдер «Дистанция ников» влияет ТОЛЬКО на billboard с ником.
 local function getPlayerColor(player)
     local wantedLevel = player:GetAttribute("WantedLevel")
     local charWanted = player.Character and player.Character:GetAttribute("WantedLevel")
@@ -588,7 +683,7 @@ local function applyEsp(player)
     billboard.Parent = head
 
     local conn = player:GetAttributeChangedSignal("WantedLevel"):Connect(function()
-        if EspEnabled then applyEsp(player) end
+        if EspEnabled and not runDead() then applyEsp(player) end
     end)
 
     EspObjects[player] = { Highlight = highlight, Billboard = billboard, Connection = conn }
@@ -597,7 +692,7 @@ end
 local function updateAllEsp()
     for _, player in ipairs(Players:GetPlayers()) do
         if player ~= LocalPlayer then
-            if EspEnabled then
+            if EspEnabled and not runDead() then
                 applyEsp(player)
             else
                 removeEsp(player)
@@ -609,7 +704,7 @@ end
 Players.PlayerAdded:Connect(function(player)
     player.CharacterAdded:Connect(function()
         task.wait(1)
-        if EspEnabled then applyEsp(player) end
+        if EspEnabled and not runDead() then applyEsp(player) end
     end)
 end)
 
@@ -618,7 +713,7 @@ Players.PlayerRemoving:Connect(removeEsp)
 for _, player in ipairs(Players:GetPlayers()) do
     player.CharacterAdded:Connect(function()
         task.wait(1)
-        if EspEnabled then applyEsp(player) end
+        if EspEnabled and not runDead() then applyEsp(player) end
     end)
 end
 
@@ -661,7 +756,7 @@ end
 local function startVFly()
     if VFlyLoop then VFlyLoop:Disconnect() end
     VFlyLoop = RunService.RenderStepped:Connect(function()
-        if not VFlyEnabled then return end
+        if not VFlyEnabled or runDead() then return end
 
         local char = LocalPlayer.Character
         local hum = char and char:FindFirstChildOfClass("Humanoid")
@@ -697,7 +792,8 @@ local function startVFly()
         if UserInputService:IsKeyDown(Enum.KeyCode.Space) then moveDir = moveDir + Vector3.new(0, 1, 0) end
         if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then moveDir = moveDir - Vector3.new(0, 1, 0) end
 
-        root.AssemblyLinearVelocity = moveDir * (VFlySpeed * 10)
+        -- VFlySpeed 1-6 (дефолт 2); при 6 = прежняя скорость (45 * 10 = 450)
+        root.AssemblyLinearVelocity = moveDir * (VFlySpeed * 75)
 
         local lookDir = Vector3.new(camera.CFrame.LookVector.X, 0, camera.CFrame.LookVector.Z)
         if lookDir.Magnitude > 0.001 then
@@ -708,24 +804,58 @@ local function startVFly()
     end)
 end
 
--- ================== NOCLIP (ЛОГИКА) ==================
-local function setNoclipState(state)
+-- ================== ВОССТАНОВЛЕНИЕ КОЛЛИЗИЙ ==================
+-- Возвращает коллизию ТОЛЬКО тем частям, у которых она по дефолту ЕСТЬ
+-- (корень, голова, торс). Конечности и аксессуары не трогаем — у них коллизии
+-- по дефолту нет, и включать её нельзя (именно это давало дёргания после анлоада).
+local NOCLIP_COLLIDE_PARTS = { "HumanoidRootPart", "Head", "Torso", "UpperTorso", "LowerTorso" }
+
+local function restoreCharacterCollisions()
+    pcall(function()
+        local char = LocalPlayer.Character
+        if not char then return end
+        for _, name in ipairs(NOCLIP_COLLIDE_PARTS) do
+            local part = char:FindFirstChild(name)
+            if part and part:IsA("BasePart") then
+                part.CanCollide = true
+            end
+        end
+    end)
+end
+
+-- ================== NOCLIP (РАБОЧАЯ ЛОГИКА + УВЕДОМЛЕНИЕ БЕЗ ДУБЛЕЙ) ==================
+-- silent = true → без уведомления (используется при анлоаде скрипта).
+-- Дубли: нажатие N вызывает setNoclipState, а затем Toggle:Set(), который
+-- повторно дёргает колбэк тоггла → setNoclipState снова. Уведомляем только
+-- при РЕАЛЬНОМ изменении состояния + дедупликация по времени на всякий случай.
+local lastNoclipNotify = 0
+
+local function setNoclipState(state, silent)
+    local changed = (NoclipEnabled ~= state)
     NoclipEnabled = state
 
     if not state then
-        local char = LocalPlayer.Character
-        if char then
-            for _, part in ipairs(char:GetDescendants()) do
-                if part:IsA("BasePart") and not part:FindFirstAncestorOfClass("Accessory") then
-                    part.CanCollide = true
-                end
-            end
+        restoreCharacterCollisions()
+    end
+
+    if changed and not silent and ScriptActive then
+        local now = os.clock()
+        if now - lastNoclipNotify > 0.3 then
+            lastNoclipNotify = now
+            pcall(function()
+                local t = L[Language]
+                Rayfield:Notify({
+                    Title = "Noclip",
+                    Content = state and t.NotifyNoclipOn or t.NotifyNoclipOff,
+                    Duration = 2
+                })
+            end)
         end
     end
 end
 
 NoclipLoop = RunService.Stepped:Connect(function()
-    if not NoclipEnabled then return end
+    if not NoclipEnabled or runDead() then return end
     local char = LocalPlayer.Character
     if not char then return end
     for _, part in ipairs(char:GetDescendants()) do
@@ -735,7 +865,7 @@ NoclipLoop = RunService.Stepped:Connect(function()
     end
 end)
 
--- ================== КЛИК-ТП ==================
+-- ================== КЛИК-ТП (1 в 1 из рабочей версии) ==================
 local function doClickTP()
     local char = LocalPlayer.Character
     local hum = char and char:FindFirstChildOfClass("Humanoid")
@@ -756,7 +886,6 @@ local function doClickTP()
     hrp.CFrame = CFrame.new(targetPos + Vector3.new(0, 3, 0))
 end
 
--- Принятие бинда. Источник — только явное имя клавиши. Никаких «последних нажатий».
 local function adoptClickTPKey(name)
     if type(name) ~= "string" then return end
     name = name:match("^%s*(.-)%s*$")
@@ -779,7 +908,6 @@ local function adoptClickTPKey(name)
     ClickTPSawListening = false
 end
 
--- Физический трекинг зажатых клавиш (по каждой отдельно)
 local ClickTPKeyTracker = UserInputService.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.Keyboard then
         HeldKeys[input.KeyCode.Name] = true
@@ -792,7 +920,6 @@ local ClickTPRelease = UserInputService.InputEnded:Connect(function(input)
     end
 end)
 
--- Зажат бинд + клик ЛКМ (не по GUI) = телепорт
 local ClickTPClick = UserInputService.InputBegan:Connect(function(input, gameProcessed)
     if gameProcessed then return end
     if input.UserInputType ~= Enum.UserInputType.MouseButton1 then return end
@@ -802,7 +929,6 @@ local ClickTPClick = UserInputService.InputBegan:Connect(function(input, gamePro
     end
 end)
 
--- === Источник 1: callback квадратика — только ЯВНЫЙ аргумент-клавиша ===
 local function makeClickTPCallback()
     return function(...)
         local args = { ... }
@@ -821,7 +947,6 @@ local function makeClickTPCallback()
     end
 end
 
--- === Источник 2: Rayfield.Flags (внутреннее состояние квадрата) ===
 local function getFlagKeybindValue()
     local ok, res = pcall(function()
         local flags = Rayfield and Rayfield.Flags
@@ -836,7 +961,6 @@ local function getFlagKeybindValue()
     return nil
 end
 
--- === Источник 3: конфиг-файл Rayfield (куда он пишет бинды) ===
 local RAYFIELD_CONFIG = "BullySDRP/Binds.json"
 
 local function getFileKeybindValue()
@@ -857,7 +981,6 @@ local function getFileKeybindValue()
     return nil
 end
 
--- === Источник 4: текст квадратика (резервный поиск по заголовку строки) ===
 local function normalizeText(s)
     if type(s) ~= "string" then return "" end
     return s:lower():gsub("^%s+", ""):gsub("%s+$", "")
@@ -919,7 +1042,6 @@ local function findClickTPChip()
     return nil
 end
 
--- Опрос источников (0.25 сек)
 task.spawn(function()
     while ScriptActive do
         task.wait(0.25)
@@ -957,6 +1079,7 @@ end
 
 -- ================== ШИФТЛОК (жёсткая клавиша RightShift) ==================
 ShiftLockLoop = RunService.RenderStepped:Connect(function()
+    if runDead() then return end
     local char = LocalPlayer.Character
     local hum = char and char:FindFirstChildOfClass("Humanoid")
 
@@ -972,6 +1095,7 @@ end)
 local ShiftLockConnection
 ShiftLockConnection = UserInputService.InputBegan:Connect(function(input, gameProcessed)
     if gameProcessed then return end
+    if runDead() then return end
     if input.KeyCode == Enum.KeyCode.RightShift then
         local char = LocalPlayer.Character
         local hum = char and char:FindFirstChildOfClass("Humanoid")
@@ -1123,6 +1247,7 @@ end
 
 -- ================== ЦИКЛЫ СПИДХАКОВ ==================
 local PlayerLoop = RunService.Heartbeat:Connect(function()
+    if runDead() then return end
     if PlayerSpeedEnabled and UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then
         local char = LocalPlayer.Character
         if char then
@@ -1136,6 +1261,7 @@ local PlayerLoop = RunService.Heartbeat:Connect(function()
 end)
 
 local VehicleLoop = RunService.Heartbeat:Connect(function(deltaTime)
+    if runDead() then return end
     local altHeld = UserInputService:IsKeyDown(Enum.KeyCode.LeftAlt) or UserInputService:IsKeyDown(Enum.KeyCode.RightAlt)
 
     if VehicleSpeedEnabled and altHeld then
@@ -1184,7 +1310,7 @@ local function moveToTargetForJob(pos)
 end
 
 task.spawn(function()
-    while BoxJobActiveRoutine do
+    while BoxJobActiveRoutine and not runDead() do
         if BoxJobEnabled then
             local reachedFetch = moveToTargetForJob(FETCH_POS)
 
@@ -1254,6 +1380,94 @@ end)
 Players.PlayerRemoving:Connect(function()
     task.defer(refreshTargetDropdown)
 end)
+
+-- ================== СБРОС ПЕРСОНАЖА ПРИ АНЛОАДЕ ==================
+-- МЯГКИЙ сброс: коллизии только дефолтным частям (корень/голова/торс),
+-- гуманоиду WalkSpeed/PlatformStand, корню обнуление скорости.
+local function resetCharacterState()
+    pcall(function()
+        local char = LocalPlayer.Character
+        if not char then return end
+
+        restoreCharacterCollisions()
+
+        local hrp = char:FindFirstChild("HumanoidRootPart")
+        if hrp then
+            pcall(function()
+                hrp.Anchored = false
+                hrp.AssemblyLinearVelocity = Vector3.zero
+                hrp.AssemblyAngularVelocity = Vector3.zero
+            end)
+        end
+
+        local hum = char:FindFirstChildOfClass("Humanoid")
+        if hum then
+            pcall(function()
+                hum.WalkSpeed = 16
+                hum.PlatformStand = false
+                hum.AutoRotate = true
+            end)
+        end
+    end)
+end
+
+-- ================== ПОЛНЫЙ СБРОС (Unload) ==================
+hardUnload = function()
+    ScriptActive = false
+    PlayerSpeedEnabled = false
+    NoclipEnabled = false
+    setNoclipState(false, true) -- silent: без уведомления при анлоаде
+    VehicleSpeedEnabled = false
+    EspEnabled = false
+    VFlyEnabled = false
+    VehicleShiftLockEnabled = false
+    BoxJobEnabled = false
+    BoxJobActiveRoutine = false
+    AimbotEnabled = false
+    AimbotShowFov = false
+    CurrentTarget = nil
+    ClickTPKeyName = nil
+    ClickTPDeadKey = nil
+    HeldKeys = {}
+    pcall(stopTracker)
+    pcall(stopVFly)
+    FovCircle.Visible = false
+    pcall(function() FovCircle:Remove() end)
+    UserInputService.MouseBehavior = Enum.MouseBehavior.Default
+    pcall(function() UserInputService.MouseIconEnabled = true end)
+
+    pcall(updateAllEsp)
+    pcall(function() AC_CONFIG.restoreVehicles() end)
+
+    -- мягкий сброс персонажа: сразу + с повтором (покрывает лаг/респавн)
+    pcall(resetCharacterState)
+    task.delay(0.3, resetCharacterState)
+    task.delay(1.5, resetCharacterState)
+    -- и на следующий спавн, если персонаж пересоздался в момент выгрузки
+    task.spawn(function()
+        local conn
+        conn = LocalPlayer.CharacterAdded:Connect(function()
+            task.wait(0.5)
+            pcall(resetCharacterState)
+            if conn then conn:Disconnect() end
+        end)
+        task.delay(10, function()
+            if conn then conn:Disconnect() end
+        end)
+    end)
+
+    if PlayerLoop then PlayerLoop:Disconnect() end
+    if VehicleLoop then VehicleLoop:Disconnect() end
+    if NoclipLoop then NoclipLoop:Disconnect() end
+    if ShiftLockLoop then ShiftLockLoop:Disconnect() end
+    if ShiftLockConnection then ShiftLockConnection:Disconnect() end
+    if AimbotLoop then AimbotLoop:Disconnect() end
+    if ClickTPKeyTracker then ClickTPKeyTracker:Disconnect() end
+    if ClickTPRelease then ClickTPRelease:Disconnect() end
+    if ClickTPClick then ClickTPClick:Disconnect() end
+
+    if UIRefs.Window then pcall(function() UIRefs.Window:Destroy() end) end
+end
 
 -- ================== УТИЛИТЫ GUI ==================
 local function applyBottomPadding()
@@ -1411,20 +1625,281 @@ local function partFromDisplay(display)
     return "Head"
 end
 
+-- ================== СИСТЕМА КОНФИГОВ ==================
+local function ensureConfigsFolder()
+    if type(isfolder) ~= "function" or type(makefolder) ~= "function" then return end
+    pcall(function()
+        if not isfolder("BullySDRP") then makefolder("BullySDRP") end
+        if not isfolder(CONFIGS_FOLDER) then makefolder(CONFIGS_FOLDER) end
+    end)
+end
+
+local function configPath(name)
+    return CONFIGS_FOLDER .. "/" .. name .. ".json"
+end
+
+local function sanitizeConfigName(name)
+    name = tostring(name or ""):match("^%s*(.-)%s*$")
+    name = name:gsub('[%c/\\:%*%?"<>|]', "")
+    name = name:match("^%s*(.-)%s*$")
+    if #name == 0 or #name > 32 then return nil end
+    if name:match("^%.+$") then return nil end
+    return name
+end
+
+local function listConfigs()
+    local names = {}
+    if type(listfiles) ~= "function" then return names end
+    pcall(function()
+        ensureConfigsFolder()
+        for _, path in ipairs(listfiles(CONFIGS_FOLDER)) do
+            local base = path:match("[/\\]([^/\\]+)$") or path
+            base = base:match("^(.-)%.json$") or base
+            if #base > 0 then table.insert(names, base) end
+        end
+    end)
+    table.sort(names)
+    return names
+end
+
+local function writeConfig(name, data)
+    if type(writefile) ~= "function" then return false end
+    ensureConfigsFolder()
+    local ok = pcall(function()
+        writefile(configPath(name), HttpService:JSONEncode(data))
+    end)
+    return ok
+end
+
+local function readConfig(name)
+    if type(readfile) ~= "function" then return nil end
+    local path = configPath(name)
+    if type(isfile) == "function" then
+        local exists = false
+        pcall(function() exists = isfile(path) end)
+        if not exists then return nil end
+    end
+    local ok, data = pcall(function()
+        return HttpService:JSONDecode(readfile(path))
+    end)
+    if ok and type(data) == "table" then return data end
+    return nil
+end
+
+local function deleteConfig(name)
+    if type(delfile) == "function" then
+        pcall(function() delfile(configPath(name)) end)
+    end
+end
+
+local function setAutoLoadName(name)
+    if type(writefile) ~= "function" then return end
+    pcall(function()
+        writefile(AUTOLOAD_FILE, HttpService:JSONEncode({ AutoLoad = name or "" }))
+    end)
+end
+
+local function getAutoLoadName()
+    if type(readfile) ~= "function" or type(isfile) ~= "function" then return nil end
+    local ok, data = pcall(function()
+        if not isfile(AUTOLOAD_FILE) then return nil end
+        return HttpService:JSONDecode(readfile(AUTOLOAD_FILE))
+    end)
+    if ok and type(data) == "table" and type(data.AutoLoad) == "string" and data.AutoLoad ~= "" then
+        return data.AutoLoad
+    end
+    return nil
+end
+
+local function getFlagBind(flag)
+    local ok, res = pcall(function()
+        local flags = Rayfield and Rayfield.Flags
+        if type(flags) ~= "table" then return nil end
+        local el = flags[flag]
+        if type(el) ~= "table" then return nil end
+        if typeof(el.CurrentKeybind) == "EnumItem" then return el.CurrentKeybind.Name end
+        if type(el.CurrentKeybind) == "string" then return el.CurrentKeybind end
+        return nil
+    end)
+    if ok and type(res) == "string" then
+        res = res:match("^%s*(.-)%s*$")
+        if res == "None" or res == "Unknown" or res == "" then return nil end
+        return res
+    end
+    return nil
+end
+
+local function normalizeBindName(v)
+    if type(v) ~= "string" then return nil end
+    v = v:match("^%s*(.-)%s*$")
+    if #v == 0 then return nil end
+    if v == "None" or v == "Unknown" then return nil end
+    return v
+end
+
+local function getSaveData()
+    return {
+        Version = 1,
+        Vehicle = {
+            SpeedEnabled = VehicleSpeedEnabled,
+            Mode = VehicleSpeedMode,
+            Speed = VehicleAltSpeed,
+            AntiTip = VehicleAltRisky,
+            FlySpeed = VFlySpeed,
+        },
+        Player = {
+            SpeedEnabled = PlayerSpeedEnabled,
+            Speed = PlayerSpeed,
+        },
+        Esp = {
+            Enabled = EspEnabled,
+            Distance = EspMaxDistance,
+        },
+        Aimbot = {
+            Enabled = AimbotEnabled,
+            Smoothness = AimbotSmoothness,
+            Part = AimbotPart,
+            TeamCheck = AimbotTeamCheck,
+            MaxDistance = AimbotMaxDistance,
+            FovRadius = AimbotFovRadius,
+            ShowFov = AimbotShowFov,
+        },
+        Binds = {
+            VehicleFly = getFlagBind("BindVFly"),
+            Unstuck = getFlagBind("BindUnstuck"),
+            Aimbot = getFlagBind("BindAimbot"),
+            Noclip = getFlagBind("BindNoclip"),
+            ClickTP = getFlagBind("BindClickTP"),
+        },
+    }
+end
+
+local function applyBindsToUI()
+    if not ActiveBinds then return end
+
+    local function setBind(el, flag, name)
+        if not name then return end
+        if el and type(el.Set) == "function" then
+            pcall(function() el:Set(name) end)
+        end
+        pcall(function()
+            local flags = Rayfield and Rayfield.Flags
+            if type(flags) == "table" and type(flags[flag]) == "table" then
+                flags[flag].CurrentKeybind = name
+            end
+        end)
+    end
+
+    setBind(UIRefs.FlyKeybind, "BindVFly", ActiveBinds.VehicleFly)
+    setBind(UIRefs.UnstuckKeybind, "BindUnstuck", ActiveBinds.Unstuck)
+    setBind(UIRefs.AimbotKeybind, "BindAimbot", ActiveBinds.Aimbot)
+    setBind(UIRefs.NoclipKeybind, "BindNoclip", ActiveBinds.Noclip)
+    setBind(UIRefs.ClickTPKeybind, "BindClickTP", ActiveBinds.ClickTP)
+
+    if ActiveBinds.ClickTP then
+        ClickTPKeyName = ActiveBinds.ClickTP
+        ClickTPDeadKey = nil
+        ClickTPSawListening = false
+    end
+end
+
+local function syncUIFromState()
+    local function setSafe(el, val)
+        if el and type(el.Set) == "function" then
+            pcall(function() el:Set(val) end)
+        end
+    end
+    setSafe(UIRefs.VehicleSpeedToggle, VehicleSpeedEnabled)
+    setSafe(UIRefs.VehicleModeDropdown, { modeDisplay(VehicleSpeedMode) })
+    setSafe(UIRefs.VehicleSpeedSlider, VehicleAltSpeed)
+    setSafe(UIRefs.AntiTipToggle, VehicleAltRisky)
+    setSafe(UIRefs.FlySpeedSlider, VFlySpeed)
+    setSafe(UIRefs.PlayerSpeedToggle, PlayerSpeedEnabled)
+    setSafe(UIRefs.PlayerSpeedSlider, PlayerSpeed)
+    setSafe(UIRefs.EspToggle, EspEnabled)
+    setSafe(UIRefs.EspDistanceSlider, EspMaxDistance)
+    setSafe(UIRefs.AimbotToggle, AimbotEnabled)
+    setSafe(UIRefs.SmoothnessSlider, AimbotSmoothness)
+    setSafe(UIRefs.MaxDistSlider, AimbotMaxDistance)
+    setSafe(UIRefs.PartDropdown, { partDisplay(AimbotPart) })
+    setSafe(UIRefs.TeamCheckToggle, AimbotTeamCheck)
+    setSafe(UIRefs.ShowFovToggle, AimbotShowFov)
+    setSafe(UIRefs.FovRadiusSlider, AimbotFovRadius)
+    applyBindsToUI()
+end
+
+local function applySaveData(data)
+    if type(data) ~= "table" then return end
+
+    local veh = data.Vehicle
+    if type(veh) == "table" then
+        if type(veh.SpeedEnabled) == "boolean" then VehicleSpeedEnabled = veh.SpeedEnabled end
+        if veh.Mode == "Legit" or veh.Mode == "Hard" then VehicleSpeedMode = veh.Mode end
+        if type(veh.Speed) == "number" then VehicleAltSpeed = math.clamp(math.floor(veh.Speed + 0.5), 100, 400) end
+        if type(veh.AntiTip) == "boolean" then VehicleAltRisky = veh.AntiTip end
+        if type(veh.FlySpeed) == "number" then VFlySpeed = math.clamp(math.floor(veh.FlySpeed + 0.5), 1, 6) end
+    end
+
+    local pl = data.Player
+    if type(pl) == "table" then
+        if type(pl.SpeedEnabled) == "boolean" then PlayerSpeedEnabled = pl.SpeedEnabled end
+        if type(pl.Speed) == "number" then PlayerSpeed = math.clamp(pl.Speed, 0, 5) end
+    end
+
+    local esp = data.Esp
+    if type(esp) == "table" then
+        if type(esp.Enabled) == "boolean" then EspEnabled = esp.Enabled end
+        if type(esp.Distance) == "number" then EspMaxDistance = math.clamp(math.floor(esp.Distance + 0.5), 50, 2000) end
+    end
+
+    local aim = data.Aimbot
+    if type(aim) == "table" then
+        if type(aim.Enabled) == "boolean" then AimbotEnabled = aim.Enabled end
+        if type(aim.Smoothness) == "number" then AimbotSmoothness = math.clamp(aim.Smoothness, 0.05, 1) end
+        if aim.Part == "Head" or aim.Part == "HumanoidRootPart" then AimbotPart = aim.Part end
+        if type(aim.TeamCheck) == "boolean" then AimbotTeamCheck = aim.TeamCheck end
+        if type(aim.MaxDistance) == "number" then AimbotMaxDistance = math.clamp(math.floor(aim.MaxDistance + 0.5), 50, 1000) end
+        if type(aim.FovRadius) == "number" then AimbotFovRadius = math.clamp(math.floor(aim.FovRadius + 0.5), 20, 500) end
+        if type(aim.ShowFov) == "boolean" then AimbotShowFov = aim.ShowFov end
+    end
+
+    local b = data.Binds
+    if type(b) == "table" then
+        ActiveBinds = {
+            VehicleFly = normalizeBindName(b.VehicleFly),
+            Unstuck = normalizeBindName(b.Unstuck),
+            Aimbot = normalizeBindName(b.Aimbot),
+            Noclip = normalizeBindName(b.Noclip),
+            ClickTP = normalizeBindName(b.ClickTP),
+        }
+    end
+
+    syncUIFromState()
+    pcall(updateAllEsp)
+end
+
+local function applyAutoLoadIfSet()
+    local name = getAutoLoadName()
+    if not name then return end
+    local data = readConfig(name)
+    if data then
+        applySaveData(data)
+    else
+        setAutoLoadName(nil)
+    end
+end
+
 -- ================== ПОСТРОЕНИЕ ИНТЕРФЕЙСА ==================
 buildUI = function()
     if not ScriptActive then return end
     local t = L[Language]
 
-    -- Новое поколение UI. Старые копии библиотеки Rayfield (после смены языка)
-    -- всё ещё ловят нажатия клавиш и дёргают свои старые колбэки — из-за этого
-    -- бинд срабатывал дважды (вкл+выкл в один кадр = выглядел мёртвым).
     UIGeneration = UIGeneration + 1
     local myGen = UIGeneration
 
-    -- Обёртка: колбэк живёт только пока его поколение актуально
     local function guard(cb)
         return function(...)
+            if not ScriptActive or runDead() then return end
             if myGen ~= UIGeneration then return end
             return cb(...)
         end
@@ -1461,7 +1936,7 @@ buildUI = function()
 
     -- ---------- Vehicle ----------
     VehicleTab:CreateSection(t.VehicleSection)
-    VehicleTab:CreateToggle({
+    UIRefs.VehicleSpeedToggle = VehicleTab:CreateToggle({
         Name = t.VehicleSpeed,
         CurrentValue = VehicleSpeedEnabled,
         Callback = function(v)
@@ -1469,7 +1944,7 @@ buildUI = function()
             if not v then AC_CONFIG.restoreVehicles() end
         end
     })
-    VehicleTab:CreateDropdown({
+    UIRefs.VehicleModeDropdown = VehicleTab:CreateDropdown({
         Name = t.VehicleMode,
         Options = { t.ModeLegit, t.ModeHard },
         CurrentOption = { modeDisplay(VehicleSpeedMode) },
@@ -1479,21 +1954,30 @@ buildUI = function()
             AC_CONFIG.restoreVehicles()
         end
     })
-    VehicleTab:CreateSlider({
+    UIRefs.VehicleSpeedSlider = VehicleTab:CreateSlider({
         Name = t.Speed,
         Range = { 100, 400 },
         Increment = 5,
         CurrentValue = VehicleAltSpeed,
         Callback = function(v) VehicleAltSpeed = v end
     })
-    VehicleTab:CreateToggle({
+    UIRefs.AntiTipToggle = VehicleTab:CreateToggle({
         Name = t.AntiTip,
         CurrentValue = VehicleAltRisky,
         Callback = function(v) VehicleAltRisky = v end
     })
 
+    VehicleTab:CreateSection(t.FlySection)
+    UIRefs.FlySpeedSlider = VehicleTab:CreateSlider({
+        Name = t.FlySpeed,
+        Range = { 1, 6 },
+        Increment = 1,
+        CurrentValue = VFlySpeed,
+        Callback = function(v) VFlySpeed = v end
+    })
+
     VehicleTab:CreateSection(t.BindsSection)
-    VehicleTab:CreateKeybind({
+    UIRefs.FlyKeybind = VehicleTab:CreateKeybind({
         Name = t.BindFlyName,
         Flag = "BindVFly",
         CurrentKeybind = "L",
@@ -1511,7 +1995,7 @@ buildUI = function()
             end
         end)
     })
-    VehicleTab:CreateKeybind({
+    UIRefs.UnstuckKeybind = VehicleTab:CreateKeybind({
         Name = t.BindUnstuckName,
         Flag = "BindUnstuck",
         CurrentKeybind = "R",
@@ -1534,7 +2018,7 @@ buildUI = function()
         CurrentValue = AimbotEnabled,
         Callback = function(v) AimbotEnabled = v if not v then CurrentTarget = nil end end
     })
-    CombatTab:CreateKeybind({
+    UIRefs.AimbotKeybind = CombatTab:CreateKeybind({
         Name = t.BindAimbotName,
         Flag = "BindAimbot",
         CurrentKeybind = "Q",
@@ -1547,40 +2031,40 @@ buildUI = function()
             end
         end)
     })
-    CombatTab:CreateSlider({
+    UIRefs.SmoothnessSlider = CombatTab:CreateSlider({
         Name = t.Smoothness,
         Range = { 0.05, 1 },
         Increment = 0.05,
         CurrentValue = AimbotSmoothness,
         Callback = function(v) AimbotSmoothness = v end
     })
-    CombatTab:CreateSlider({
+    UIRefs.MaxDistSlider = CombatTab:CreateSlider({
         Name = t.MaxDistance,
         Range = { 50, 1000 },
         Increment = 25,
         CurrentValue = AimbotMaxDistance,
         Callback = function(v) AimbotMaxDistance = v end
     })
-    CombatTab:CreateDropdown({
+    UIRefs.PartDropdown = CombatTab:CreateDropdown({
         Name = t.TargetPart,
         Options = { t.PartHead, t.PartBody },
         CurrentOption = { partDisplay(AimbotPart) },
         MultipleOptions = false,
         Callback = function(v) AimbotPart = partFromDisplay(v[1] or v) end
     })
-    CombatTab:CreateToggle({
+    UIRefs.TeamCheckToggle = CombatTab:CreateToggle({
         Name = t.TeamCheck,
         CurrentValue = AimbotTeamCheck,
         Callback = function(v) AimbotTeamCheck = v end
     })
 
     CombatTab:CreateSection(t.FovSection)
-    CombatTab:CreateToggle({
+    UIRefs.ShowFovToggle = CombatTab:CreateToggle({
         Name = t.ShowFov,
         CurrentValue = AimbotShowFov,
         Callback = function(v) AimbotShowFov = v end
     })
-    CombatTab:CreateSlider({
+    UIRefs.FovRadiusSlider = CombatTab:CreateSlider({
         Name = t.FovRadius,
         Range = { 20, 500 },
         Increment = 5,
@@ -1590,12 +2074,12 @@ buildUI = function()
 
     -- ---------- Player ----------
     PlayerTab:CreateSection(t.MovementSection)
-    PlayerTab:CreateToggle({
+    UIRefs.PlayerSpeedToggle = PlayerTab:CreateToggle({
         Name = t.PlayerSpeedHack,
         CurrentValue = PlayerSpeedEnabled,
         Callback = function(v) PlayerSpeedEnabled = v end
     })
-    PlayerTab:CreateSlider({
+    UIRefs.PlayerSpeedSlider = PlayerTab:CreateSlider({
         Name = t.Speed,
         Range = { 0, 5 },
         Increment = 0.1,
@@ -1609,7 +2093,7 @@ buildUI = function()
         CurrentValue = NoclipEnabled,
         Callback = function(v) setNoclipState(v) end
     })
-    PlayerTab:CreateKeybind({
+    UIRefs.NoclipKeybind = PlayerTab:CreateKeybind({
         Name = t.BindNoclipName,
         Flag = "BindNoclip",
         CurrentKeybind = "N",
@@ -1623,7 +2107,6 @@ buildUI = function()
     })
 
     PlayerTab:CreateSection(t.TeleportSection)
-    -- Родной квадратик. Дефолта НЕТ — юзер назначает сам, Rayfield сохраняет выбор.
     UIRefs.ClickTPKeybind = PlayerTab:CreateKeybind({
         Name = t.BindClickTPName,
         Flag = "BindClickTP",
@@ -1646,7 +2129,6 @@ buildUI = function()
             Rayfield:Notify({ Title = "Click TP", Content = t.NotifyTPReset, Duration = 2 })
         end
     })
-    -- Маленький прозрачный отступ (10px)
     local spacer = PlayerTab:CreateLabel("")
     pcall(function()
         local o = spacer and spacer.Object
@@ -1660,7 +2142,7 @@ buildUI = function()
 
     -- ---------- Visual ----------
     VisualTab:CreateSection(t.PlayersSection)
-    VisualTab:CreateToggle({
+    UIRefs.EspToggle = VisualTab:CreateToggle({
         Name = t.PlayerEsp,
         CurrentValue = EspEnabled,
         Callback = function(v)
@@ -1668,11 +2150,20 @@ buildUI = function()
             updateAllEsp()
         end
     })
+    UIRefs.EspDistanceSlider = VisualTab:CreateSlider({
+        Name = t.EspDistance,
+        Range = { 50, 2000 },
+        Increment = 25,
+        CurrentValue = EspMaxDistance,
+        Callback = function(v)
+            EspMaxDistance = v
+            if EspEnabled then updateAllEsp() end
+        end
+    })
 
-    -- ---------- Functions (УДАЛЕНИЕ — ПЕРВЫЙ РАЗДЕЛ) ----------
+    -- ---------- Functions ----------
     FunctionsTab:CreateSection(t.DeletionSection)
 
-    -- Шлагбаумы
     FunctionsTab:CreateToggle({
         Name = t.Gates,
         CurrentValue = (#RemovedGates > 0),
@@ -1687,7 +2178,6 @@ buildUI = function()
         end
     })
 
-    -- Стены банка
     FunctionsTab:CreateToggle({
         Name = t.BankWall,
         CurrentValue = (#RemovedBankObjects > 0),
@@ -1702,7 +2192,6 @@ buildUI = function()
         end
     })
 
-    -- ---------- Авто (авто-работа) ----------
     FunctionsTab:CreateSection(t.JobsSection)
     FunctionsTab:CreateToggle({
         Name = t.AutoJob,
@@ -1718,7 +2207,6 @@ buildUI = function()
         end
     })
 
-    -- ---------- Передача денег ----------
     FunctionsTab:CreateSection(t.TrackerSection)
 
     UIRefs.TargetDropdown = FunctionsTab:CreateDropdown({
@@ -1774,7 +2262,7 @@ buildUI = function()
                     if TrackerConnection then TrackerConnection:Disconnect() end
 
                     TrackerConnection = RunService.RenderStepped:Connect(function()
-                        if not TrackerRunning then return end
+                        if not TrackerRunning or runDead() then return end
 
                         local char = LocalPlayer.Character
                         local hum = char and char:FindFirstChildOfClass("Humanoid")
@@ -1817,43 +2305,12 @@ buildUI = function()
         end
     })
 
-    -- ---------- Settings (ВЫХОД — ПЕРВАЯ) ----------
+    -- ---------- Settings ----------
     SettingsTab:CreateSection(t.MainSection)
     SettingsTab:CreateButton({
         Name = t.Unload,
         Callback = function()
-            ScriptActive = false
-            PlayerSpeedEnabled = false
-            NoclipEnabled = false
-            setNoclipState(false)
-            VehicleSpeedEnabled = false
-            EspEnabled = false
-            VFlyEnabled = false
-            VehicleShiftLockEnabled = false
-            BoxJobEnabled = false
-            BoxJobActiveRoutine = false
-            AimbotEnabled = false
-            CurrentTarget = nil
-            ClickTPKeyName = nil
-            ClickTPDeadKey = nil
-            HeldKeys = {}
-            stopTracker()
-            FovCircle.Visible = false
-            pcall(function() FovCircle:Remove() end)
-            UserInputService.MouseBehavior = Enum.MouseBehavior.Default
-            stopVFly()
-            updateAllEsp()
-            AC_CONFIG.restoreVehicles()
-            if PlayerLoop then PlayerLoop:Disconnect() end
-            if VehicleLoop then VehicleLoop:Disconnect() end
-            if NoclipLoop then NoclipLoop:Disconnect() end
-            if ShiftLockLoop then ShiftLockLoop:Disconnect() end
-            if ShiftLockConnection then ShiftLockConnection:Disconnect() end
-            if AimbotLoop then AimbotLoop:Disconnect() end
-            if ClickTPKeyTracker then ClickTPKeyTracker:Disconnect() end
-            if ClickTPRelease then ClickTPRelease:Disconnect() end
-            if ClickTPClick then ClickTPClick:Disconnect() end
-            if UIRefs.Window then pcall(function() UIRefs.Window:Destroy() end) end
+            hardUnload()
             pcall(function()
                 local old = getGuiParent():FindFirstChild("Rayfield")
                 if old then old:Destroy() end
@@ -1861,10 +2318,130 @@ buildUI = function()
         end
     })
 
+    SettingsTab:CreateSection(t.ConfigSection)
+    SettingsTab:CreateParagraph({ Title = t.ConfigSection, Content = t.ConfigInfo })
+
+    local newConfigName = nil
+    SettingsTab:CreateInput({
+        Name = t.ConfigName,
+        PlaceholderText = t.ConfigPlaceholder,
+        RemoveTextAfterFocusLost = false,
+        Callback = function(text)
+            newConfigName = text
+        end
+    })
+
+    local function refreshConfigUI()
+        local names = listConfigs()
+        if UIRefs.ConfigDropdown then
+            pcall(function() UIRefs.ConfigDropdown:Refresh(names) end)
+        end
+        if UIRefs.AutoLoadDropdown then
+            local opts = { t.AutoLoadNone }
+            for _, n in ipairs(names) do table.insert(opts, n) end
+            pcall(function() UIRefs.AutoLoadDropdown:Refresh(opts) end)
+        end
+    end
+
+    SettingsTab:CreateButton({
+        Name = t.SaveConfigBtn,
+        Callback = function()
+            local name = sanitizeConfigName(newConfigName)
+            if not name then
+                pcall(function()
+                    Rayfield:Notify({ Title = t.NotifyInfo, Content = t.NotifyConfigNameEmpty, Duration = 3 })
+                end)
+                return
+            end
+            if writeConfig(name, getSaveData()) then
+                refreshConfigUI()
+                pcall(function()
+                    Rayfield:Notify({ Title = t.NotifySuccess, Content = t.NotifyConfigSaved .. name, Duration = 3 })
+                end)
+            end
+        end
+    })
+
+    UIRefs.ConfigDropdown = SettingsTab:CreateDropdown({
+        Name = t.ConfigList,
+        Options = listConfigs(),
+        CurrentOption = {},
+        MultipleOptions = false,
+        Callback = function(v)
+            local val = v
+            if type(val) == "table" then val = val[1] end
+            UIRefs.SelectedConfig = val
+        end
+    })
+
+    SettingsTab:CreateButton({
+        Name = t.LoadConfigBtn,
+        Callback = function()
+            local name = UIRefs.SelectedConfig
+            local data = name and readConfig(name) or nil
+            if not data then
+                pcall(function()
+                    Rayfield:Notify({ Title = t.NotifyInfo, Content = t.NotifyConfigNotFound, Duration = 3 })
+                end)
+                return
+            end
+            applySaveData(data)
+            pcall(function()
+                Rayfield:Notify({ Title = t.NotifySuccess, Content = t.NotifyConfigLoaded .. tostring(name), Duration = 3 })
+            end)
+        end
+    })
+
+    SettingsTab:CreateButton({
+        Name = t.DeleteConfigBtn,
+        Callback = function()
+            local name = UIRefs.SelectedConfig
+            if not name then return end
+            deleteConfig(name)
+            if getAutoLoadName() == name then
+                setAutoLoadName(nil)
+            end
+            refreshConfigUI()
+            pcall(function()
+                Rayfield:Notify({ Title = t.NotifyInfo, Content = t.NotifyConfigDeleted, Duration = 3 })
+            end)
+        end
+    })
+
+    local autoOpts = { t.AutoLoadNone }
+    for _, n in ipairs(listConfigs()) do table.insert(autoOpts, n) end
+    UIRefs.AutoLoadDropdown = SettingsTab:CreateDropdown({
+        Name = t.AutoLoadConfig,
+        Options = autoOpts,
+        CurrentOption = { getAutoLoadName() or t.AutoLoadNone },
+        MultipleOptions = false,
+        Callback = function(v)
+            local val = v
+            if type(val) == "table" then val = val[1] end
+            if not val or val == t.AutoLoadNone then
+                setAutoLoadName(nil)
+                pcall(function()
+                    Rayfield:Notify({ Title = t.NotifyInfo, Content = t.NotifyAutoLoadOff, Duration = 2 })
+                end)
+            else
+                setAutoLoadName(val)
+                pcall(function()
+                    Rayfield:Notify({ Title = t.NotifyInfo, Content = t.NotifyAutoLoadSet .. val, Duration = 2 })
+                end)
+            end
+        end
+    })
+
     task.delay(0.5, function() if ScriptActive then applyBottomPadding() end end)
     task.delay(1.5, function() if ScriptActive then applyBottomPadding() end end)
 
     attachLangButtons()
+
+    task.delay(0.5, function()
+        if ScriptActive then
+            applyBindsToUI()
+        end
+    end)
 end
 
 -- ================== ПЕРЕКЛЮЧЕНИЕ ЯЗЫКА ==================
@@ -1881,5 +2458,18 @@ switchLanguage = function(lang)
 end
 
 -- ================== СТАРТ ==================
--- Библиотеку грузит сам buildUI — никаких двойных загрузок при старте
+applyAutoLoadIfSet()
 buildUI()
+
+task.spawn(function()
+    while not runDead() do
+        task.wait(0.5)
+    end
+    pcall(function() hardUnload() end)
+end)
+
+task.delay(1, function()
+    if ScriptActive and EspEnabled then
+        pcall(updateAllEsp)
+    end
+end)
