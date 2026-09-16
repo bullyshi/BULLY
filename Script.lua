@@ -94,7 +94,7 @@ local L = {
         FunctionsTab = "Functions", SettingsTab = "Settings",
 
         VehicleSection = "Vehicle Control",
-        VehicleSpeed = "SpeedHack [Alt]",
+        VehicleSpeed = "SpeedHack [Ctrl]",
         VehicleMode = "SpeedHack Mode",
         ModeLegit = "Legit",
         ModeHard = "Hard",
@@ -105,6 +105,8 @@ local L = {
 
         FlySection = "Vehicle Fly",
         FlySpeed = "Fly Speed",
+
+        BindSpeedName = "SpeedHack Key",
 
         AimbotSection = "Aimbot Settings",
         AimbotToggle = "Aimbot Enabled",
@@ -173,7 +175,7 @@ local L = {
         VFlyAutoOff = "Fly disabled (left the vehicle)",
 
         ConfigSection = "Configs",
-        ConfigInfo = "Configs save: Vehicle SpeedHack, Fly Speed, Player SpeedHack, ESP (nick distance), Aimbot AND binds (Fly / Unstuck / Aimbot / Noclip / ClickTP). Jobs / object deletion / noclip state / click-TP state are NOT saved. No config = default settings.",
+        ConfigInfo = "Configs save: Vehicle SpeedHack, Fly Speed, Player SpeedHack, ESP (nick distance), Aimbot AND binds (SpeedHack / Fly / Unstuck / Aimbot / Noclip / ClickTP). Jobs / object deletion / noclip state / click-TP state are NOT saved. No config = default settings.",
         ConfigName = "Config Name",
         ConfigPlaceholder = "Enter config name...",
         SaveConfigBtn = "Save Config",
@@ -197,7 +199,7 @@ local L = {
         FunctionsTab = "Функции", SettingsTab = "Настройки",
 
         VehicleSection = "Управление машиной",
-        VehicleSpeed = "Спидхак [Alt]",
+        VehicleSpeed = "Спидхак [Ctrl]",
         VehicleMode = "Режим спидхака",
         ModeLegit = "Обычный",
         ModeHard = "Хард",
@@ -208,6 +210,8 @@ local L = {
 
         FlySection = "Полёт машины",
         FlySpeed = "Скорость полёта",
+
+        BindSpeedName = "Клавиша спидхака",
 
         AimbotSection = "Настройки аимбота",
         AimbotToggle = "Аимбот",
@@ -276,7 +280,7 @@ local L = {
         VFlyAutoOff = "Полёт отключён (вы покинули транспорт)",
 
         ConfigSection = "Конфиги",
-        ConfigInfo = "В конфиг сохраняется: спидхак машины, скорость полёта, спидхак игрока, ESP (дистанция ников), аимбот И бинды (Полёт / Анстак / Аимбот / Ноуклип / Клик-ТП). Авто-работа / удаление объектов / состояние ноуклипа / состояние клик-ТП НЕ сохраняются. Нет конфига — дефолтные настройки.",
+        ConfigInfo = "В конфиг сохраняется: спидхак машины, скорость полёта, спидхак игрока, ESP (дистанция ников), аимбот И бинды (Спидхак / Полёт / Анстак / Аимбот / Ноуклип / Клик-ТП). Авто-работа / удаление объектов / состояние ноуклипа / состояние клик-ТП НЕ сохраняются. Нет конфига — дефолтные настройки.",
         ConfigName = "Имя конфига",
         ConfigPlaceholder = "Введите имя конфига...",
         SaveConfigBtn = "Сохранить конфиг",
@@ -308,6 +312,9 @@ local VehicleSpeedEnabled = false
 local VehicleSpeedMode = "Legit"
 local VehicleAltSpeed = 200
 local VehicleAltRisky = false
+
+-- Клавиша спидхака машины (по дефолту Ctrl, меняется биндом)
+local VehicleSpeedKeyName = "LeftControl"
 
 local EspEnabled = false
 local EspMaxDistance = 250  -- дистанция НИКОВ (слайдер 50-2000). Подсветка — без лимита
@@ -363,6 +370,7 @@ local UIRefs = {
     UnstuckKeybind = nil,
     AimbotKeybind = nil,
     NoclipKeybind = nil,
+    SpeedKeybind = nil,
     VehicleSpeedToggle = nil,
     VehicleModeDropdown = nil,
     VehicleSpeedSlider = nil,
@@ -407,6 +415,23 @@ task.spawn(function()
         VehicleUtil = module
     end
 end)
+
+-- ================== ПРОВЕРКА ЗАЖАТОЙ КЛАВИШИ БИНДА ==================
+-- Для модификаторов (Ctrl/Alt/Shift) проверяются обе стороны клавиатуры
+local function isBindKeyDown(name)
+    if type(name) ~= "string" or #name == 0 then return false end
+    local ok, kc = pcall(function() return Enum.KeyCode[name] end)
+    if not (ok and kc) then return false end
+    if UserInputService:IsKeyDown(kc) then return true end
+
+    if name == "LeftControl" then return UserInputService:IsKeyDown(Enum.KeyCode.RightControl) end
+    if name == "RightControl" then return UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) end
+    if name == "LeftAlt" then return UserInputService:IsKeyDown(Enum.KeyCode.RightAlt) end
+    if name == "RightAlt" then return UserInputService:IsKeyDown(Enum.KeyCode.LeftAlt) end
+    if name == "LeftShift" then return UserInputService:IsKeyDown(Enum.KeyCode.RightShift) end
+    if name == "RightShift" then return UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) end
+    return false
+end
 
 -- ================== ЛОГИКА СПИДХАКА АВТО ==================
 local AC_CONFIG = {
@@ -604,8 +629,6 @@ AimbotLoop = RunService.RenderStepped:Connect(function()
 end)
 
 -- ================== ESP ==================
--- Подсветка (Highlight) — БЕЗ ограничения дистанции.
--- Слайдер «Дистанция ников» влияет ТОЛЬКО на billboard с ником.
 local function getPlayerColor(player)
     local wantedLevel = player:GetAttribute("WantedLevel")
     local charWanted = player.Character and player.Character:GetAttribute("WantedLevel")
@@ -805,9 +828,6 @@ local function startVFly()
 end
 
 -- ================== ВОССТАНОВЛЕНИЕ КОЛЛИЗИЙ ==================
--- Возвращает коллизию ТОЛЬКО тем частям, у которых она по дефолту ЕСТЬ
--- (корень, голова, торс). Конечности и аксессуары не трогаем — у них коллизии
--- по дефолту нет, и включать её нельзя (именно это давало дёргания после анлоада).
 local NOCLIP_COLLIDE_PARTS = { "HumanoidRootPart", "Head", "Torso", "UpperTorso", "LowerTorso" }
 
 local function restoreCharacterCollisions()
@@ -823,11 +843,7 @@ local function restoreCharacterCollisions()
     end)
 end
 
--- ================== NOCLIP (РАБОЧАЯ ЛОГИКА + УВЕДОМЛЕНИЕ БЕЗ ДУБЛЕЙ) ==================
--- silent = true → без уведомления (используется при анлоаде скрипта).
--- Дубли: нажатие N вызывает setNoclipState, а затем Toggle:Set(), который
--- повторно дёргает колбэк тоггла → setNoclipState снова. Уведомляем только
--- при РЕАЛЬНОМ изменении состояния + дедупликация по времени на всякий случай.
+-- ================== NOCLIP ==================
 local lastNoclipNotify = 0
 
 local function setNoclipState(state, silent)
@@ -1262,9 +1278,8 @@ end)
 
 local VehicleLoop = RunService.Heartbeat:Connect(function(deltaTime)
     if runDead() then return end
-    local altHeld = UserInputService:IsKeyDown(Enum.KeyCode.LeftAlt) or UserInputService:IsKeyDown(Enum.KeyCode.RightAlt)
-
-    if VehicleSpeedEnabled and altHeld then
+    -- Клавиша спидхака машины: бинд (дефолт Ctrl, обе стороны)
+    if VehicleSpeedEnabled and isBindKeyDown(VehicleSpeedKeyName) then
         local char = LocalPlayer.Character
         local hum = char and char:FindFirstChildOfClass("Humanoid")
         if hum and hum.SeatPart then
@@ -1382,8 +1397,6 @@ Players.PlayerRemoving:Connect(function()
 end)
 
 -- ================== СБРОС ПЕРСОНАЖА ПРИ АНЛОАДЕ ==================
--- МЯГКИЙ сброс: коллизии только дефолтным частям (корень/голова/торс),
--- гуманоиду WalkSpeed/PlatformStand, корню обнуление скорости.
 local function resetCharacterState()
     pcall(function()
         local char = LocalPlayer.Character
@@ -1416,7 +1429,7 @@ hardUnload = function()
     ScriptActive = false
     PlayerSpeedEnabled = false
     NoclipEnabled = false
-    setNoclipState(false, true) -- silent: без уведомления при анлоаде
+    setNoclipState(false, true)
     VehicleSpeedEnabled = false
     EspEnabled = false
     VFlyEnabled = false
@@ -1439,11 +1452,9 @@ hardUnload = function()
     pcall(updateAllEsp)
     pcall(function() AC_CONFIG.restoreVehicles() end)
 
-    -- мягкий сброс персонажа: сразу + с повтором (покрывает лаг/респавн)
     pcall(resetCharacterState)
     task.delay(0.3, resetCharacterState)
     task.delay(1.5, resetCharacterState)
-    -- и на следующий спавн, если персонаж пересоздался в момент выгрузки
     task.spawn(function()
         local conn
         conn = LocalPlayer.CharacterAdded:Connect(function()
@@ -1765,6 +1776,7 @@ local function getSaveData()
             ShowFov = AimbotShowFov,
         },
         Binds = {
+            VehicleSpeed = getFlagBind("BindVehicleSpeed"),
             VehicleFly = getFlagBind("BindVFly"),
             Unstuck = getFlagBind("BindUnstuck"),
             Aimbot = getFlagBind("BindAimbot"),
@@ -1790,12 +1802,16 @@ local function applyBindsToUI()
         end)
     end
 
+    setBind(UIRefs.SpeedKeybind, "BindVehicleSpeed", ActiveBinds.VehicleSpeed)
     setBind(UIRefs.FlyKeybind, "BindVFly", ActiveBinds.VehicleFly)
     setBind(UIRefs.UnstuckKeybind, "BindUnstuck", ActiveBinds.Unstuck)
     setBind(UIRefs.AimbotKeybind, "BindAimbot", ActiveBinds.Aimbot)
     setBind(UIRefs.NoclipKeybind, "BindNoclip", ActiveBinds.Noclip)
     setBind(UIRefs.ClickTPKeybind, "BindClickTP", ActiveBinds.ClickTP)
 
+    if ActiveBinds.VehicleSpeed then
+        VehicleSpeedKeyName = ActiveBinds.VehicleSpeed
+    end
     if ActiveBinds.ClickTP then
         ClickTPKeyName = ActiveBinds.ClickTP
         ClickTPDeadKey = nil
@@ -1866,6 +1882,7 @@ local function applySaveData(data)
     local b = data.Binds
     if type(b) == "table" then
         ActiveBinds = {
+            VehicleSpeed = normalizeBindName(b.VehicleSpeed),
             VehicleFly = normalizeBindName(b.VehicleFly),
             Unstuck = normalizeBindName(b.Unstuck),
             Aimbot = normalizeBindName(b.Aimbot),
@@ -1977,6 +1994,22 @@ buildUI = function()
     })
 
     VehicleTab:CreateSection(t.BindsSection)
+    UIRefs.SpeedKeybind = VehicleTab:CreateKeybind({
+        Name = t.BindSpeedName,
+        Flag = "BindVehicleSpeed",
+        CurrentKeybind = "LeftControl",
+        HoldToInteract = false,
+        Callback = guard(function(key)
+            local name = key
+            if typeof(name) == "EnumItem" then name = name.Name end
+            if type(name) == "string" then
+                name = name:match("^%s*(.-)%s*$")
+                if #name > 0 and name ~= "Unknown" then
+                    VehicleSpeedKeyName = name
+                end
+            end
+        end)
+    })
     UIRefs.FlyKeybind = VehicleTab:CreateKeybind({
         Name = t.BindFlyName,
         Flag = "BindVFly",
@@ -2318,6 +2351,7 @@ buildUI = function()
         end
     })
 
+    -- ---------- Настройки: КОНФИГИ ----------
     SettingsTab:CreateSection(t.ConfigSection)
     SettingsTab:CreateParagraph({ Title = t.ConfigSection, Content = t.ConfigInfo })
 
@@ -2460,6 +2494,19 @@ end
 -- ================== СТАРТ ==================
 applyAutoLoadIfSet()
 buildUI()
+
+-- Опрос флага бинда спидхака (на случай восстановления Rayfield'ом из его конфига)
+task.spawn(function()
+    while ScriptActive do
+        task.wait(0.5)
+        pcall(function()
+            local v = getFlagBind("BindVehicleSpeed")
+            if v then
+                VehicleSpeedKeyName = v
+            end
+        end)
+    end
+end)
 
 task.spawn(function()
     while not runDead() do
