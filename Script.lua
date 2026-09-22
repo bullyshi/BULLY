@@ -1,29 +1,3 @@
-local ProtectionConfig = {
-    -- 🔴 CRITICAL: This MUST exactly match the 'Secret' value in your Key System's Config!
-    -- If your Key System has: Secret = "Test"
-    -- Then this must also be: SecretKey = "Test"
-    SecretKey = "BULLY1234",
-    
-    -- The name of your Hub (shown in the kick message if they try to bypass)
-    HubName = "BULLY HUB"
-}
-
--- Anti-Bypass Logic: Checks if the Key System successfully set the global variable
-if not _G[ProtectionConfig.SecretKey] then
-    local player = game:GetService("Players").LocalPlayer
-    if player then
-        player:Kick("\n🛡️ Unauthorized Execution 🛡️\n\nPlease use the official Key System to run " .. ProtectionConfig.HubName)
-    end
-    return -- Stops the rest of the script from loading!
-end
-
--------------------------------------------------------------------------------
--- 👇 YOUR MAIN SCRIPT CODE STARTS HERE 👇
--------------------------------------------------------------------------------
-
-print(ProtectionConfig.HubName .. " Loaded Successfully!")
-
-
 -- ================== СЕРВИСЫ ==================
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
@@ -99,7 +73,6 @@ local L = {
         ModeLegit = "Legit",
         ModeHard = "Hard",
         Speed = "Speed",
-        AntiTip = "AntiTip",
         BindsSection = "Hotkeys (Binds)",
         ShiftLockLabel = "Vehicle Shift Lock — [RightShift]",
 
@@ -148,9 +121,6 @@ local L = {
         NotifyInfo = "Info",
         NotifyNotFound = "Objects not found or already removed",
 
-        JobsSection = "Auto",
-        AutoJob = "Auto Job (Boxes)",
-
         TrackerSection = "Player Money Transfer",
         SelectTarget = "Select Target",
         RefreshList = "Refresh Player List",
@@ -175,7 +145,7 @@ local L = {
         VFlyAutoOff = "Fly disabled (left the vehicle)",
 
         ConfigSection = "Configs",
-        ConfigInfo = "Configs save: Vehicle SpeedHack, Fly Speed, Player SpeedHack, ESP (nick distance), Aimbot AND binds (SpeedHack / Fly / Unstuck / Aimbot / Noclip / ClickTP). Jobs / object deletion / noclip state / click-TP state are NOT saved. No config = default settings.",
+        ConfigInfo = "Configs save: Vehicle SpeedHack, Fly Speed, Player SpeedHack, ESP (nick distance), Aimbot AND binds (SpeedHack / Fly / Unstuck / Aimbot / Noclip / ClickTP). Object deletion / noclip state / click-TP state are NOT saved. No config = default settings.",
         ConfigName = "Config Name",
         ConfigPlaceholder = "Enter config name...",
         SaveConfigBtn = "Save Config",
@@ -204,7 +174,6 @@ local L = {
         ModeLegit = "Обычный",
         ModeHard = "Хард",
         Speed = "Скорость",
-        AntiTip = "Анти-переворот",
         BindsSection = "Горячие клавиши",
         ShiftLockLabel = "Шифтлок в транспорте — [RightShift]",
 
@@ -253,9 +222,6 @@ local L = {
         NotifyInfo = "Информация",
         NotifyNotFound = "Объекты не найдены или уже удалены",
 
-        JobsSection = "Авто",
-        AutoJob = "Авто-работа (Коробки)",
-
         TrackerSection = "Передать деньги игроку",
         SelectTarget = "Выбрать игрока",
         RefreshList = "Обновить список игроков",
@@ -280,7 +246,7 @@ local L = {
         VFlyAutoOff = "Полёт отключён (вы покинули транспорт)",
 
         ConfigSection = "Конфиги",
-        ConfigInfo = "В конфиг сохраняется: спидхак машины, скорость полёта, спидхак игрока, ESP (дистанция ников), аимбот И бинды (Спидхак / Полёт / Анстак / Аимбот / Ноуклип / Клик-ТП). Авто-работа / удаление объектов / состояние ноуклипа / состояние клик-ТП НЕ сохраняются. Нет конфига — дефолтные настройки.",
+        ConfigInfo = "В конфиг сохраняется: спидхак машины, скорость полёта, спидхак игрока, ESP (дистанция ников), аимбот И бинды (Спидхак / Полёт / Анстак / Аимбот / Ноуклип / Клик-ТП). Удаление объектов / состояние ноуклипа / состояние клик-ТП НЕ сохраняются. Нет конфига — дефолтные настройки.",
         ConfigName = "Имя конфига",
         ConfigPlaceholder = "Введите имя конфига...",
         SaveConfigBtn = "Сохранить конфиг",
@@ -310,27 +276,19 @@ local NoclipLoop = nil
 
 local VehicleSpeedEnabled = false
 local VehicleSpeedMode = "Legit"
-local VehicleAltSpeed = 200
-local VehicleAltRisky = false
 
--- Клавиша спидхака машины (по дефолту Ctrl, меняется биндом)
 local VehicleSpeedKeyName = "LeftControl"
 
 local EspEnabled = false
-local EspMaxDistance = 250  -- дистанция НИКОВ (слайдер 50-2000). Подсветка — без лимита
+local EspMaxDistance = 250
 local EspObjects = {}
 
 local VFlyEnabled = false
-local VFlySpeed = 2 -- дефолт 2 (диапазон 1-6)
+local VFlySpeed = 2
 local VFlyLoop = nil
 
 local VehicleShiftLockEnabled = false
 local ShiftLockLoop = nil
-
-local BoxJobEnabled = false
-local BoxJobActiveRoutine = true
-local FETCH_POS = Vector3.new(-25.368, 17.209, -71.160)
-local DELIVER_POS = Vector3.new(2.932, 17.282, -62.212)
 
 local AimbotEnabled = false
 local AimbotSmoothness = 0.9
@@ -347,49 +305,14 @@ local TrackerConnection = nil
 local TrackerTargetName = ""
 local TrackerRuns = 1
 
--- Клик-ТП
 local ClickTPKeyName = nil
 local HeldKeys = {}
 local ClickTPDeadKey = nil
 local ClickTPSawListening = false
 
--- Бинды, загруженные из нашего конфига
 local ActiveBinds = nil
 
-local UIRefs = {
-    Window = nil,
-    AimbotToggle = nil,
-    NoclipToggle = nil,
-    ClickTPKeybind = nil,
-    TrackToggle = nil,
-    TargetDropdown = nil,
-    LangHolder = nil,
-    EnBtn = nil,
-    RuBtn = nil,
-    FlyKeybind = nil,
-    UnstuckKeybind = nil,
-    AimbotKeybind = nil,
-    NoclipKeybind = nil,
-    SpeedKeybind = nil,
-    VehicleSpeedToggle = nil,
-    VehicleModeDropdown = nil,
-    VehicleSpeedSlider = nil,
-    AntiTipToggle = nil,
-    FlySpeedSlider = nil,
-    PlayerSpeedToggle = nil,
-    PlayerSpeedSlider = nil,
-    EspToggle = nil,
-    EspDistanceSlider = nil,
-    SmoothnessSlider = nil,
-    MaxDistSlider = nil,
-    PartDropdown = nil,
-    TeamCheckToggle = nil,
-    ShowFovToggle = nil,
-    FovRadiusSlider = nil,
-    ConfigDropdown = nil,
-    AutoLoadDropdown = nil,
-    SelectedConfig = nil,
-}
+local UIRefs = {}
 
 local buildUI, switchLanguage, attachLangButtons, hardUnload
 
@@ -417,7 +340,6 @@ task.spawn(function()
 end)
 
 -- ================== ПРОВЕРКА ЗАЖАТОЙ КЛАВИШИ БИНДА ==================
--- Для модификаторов (Ctrl/Alt/Shift) проверяются обе стороны клавиатуры
 local function isBindKeyDown(name)
     if type(name) ~= "string" or #name == 0 then return false end
     local ok, kc = pcall(function() return Enum.KeyCode[name] end)
@@ -437,6 +359,7 @@ end
 local AC_CONFIG = {
     AIR_GUARD = 2.5,
     SAFE_MULTIPLIER = 2,
+    HARD_MULTIPLIER = 4,
     VehicleAttrs = setmetatable({}, { __mode = "k" }),
 }
 
@@ -500,13 +423,10 @@ AC_CONFIG.resolveVehicle = function(humanoid)
 end
 
 AC_CONFIG.getSafeMultiplier = function()
-    local multiplier = math.clamp(VehicleAltSpeed / 100, 1, 6)
-    if VehicleSpeedMode == "Legit" and not VehicleAltRisky then
-        multiplier = math.min(multiplier, AC_CONFIG.SAFE_MULTIPLIER)
-    elseif VehicleSpeedMode == "Hard" then
-        multiplier = math.clamp(VehicleAltSpeed / 50, 1, 12)
+    if VehicleSpeedMode == "Hard" then
+        return AC_CONFIG.HARD_MULTIPLIER
     end
-    return multiplier
+    return AC_CONFIG.SAFE_MULTIPLIER
 end
 
 AC_CONFIG.boostVehicle = function(vehicle, seat, root)
@@ -815,7 +735,6 @@ local function startVFly()
         if UserInputService:IsKeyDown(Enum.KeyCode.Space) then moveDir = moveDir + Vector3.new(0, 1, 0) end
         if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then moveDir = moveDir - Vector3.new(0, 1, 0) end
 
-        -- VFlySpeed 1-6 (дефолт 2); при 6 = прежняя скорость (45 * 10 = 450)
         root.AssemblyLinearVelocity = moveDir * (VFlySpeed * 75)
 
         local lookDir = Vector3.new(camera.CFrame.LookVector.X, 0, camera.CFrame.LookVector.Z)
@@ -881,7 +800,7 @@ NoclipLoop = RunService.Stepped:Connect(function()
     end
 end)
 
--- ================== КЛИК-ТП (1 в 1 из рабочей версии) ==================
+-- ================== КЛИК-ТП ==================
 local function doClickTP()
     local char = LocalPlayer.Character
     local hum = char and char:FindFirstChildOfClass("Humanoid")
@@ -1093,7 +1012,7 @@ local function forceChipTextNone()
     end)
 end
 
--- ================== ШИФТЛОК (жёсткая клавиша RightShift) ==================
+-- ================== ШИФТЛОК ==================
 ShiftLockLoop = RunService.RenderStepped:Connect(function()
     if runDead() then return end
     local char = LocalPlayer.Character
@@ -1184,57 +1103,79 @@ end
 -- ================== УДАЛЕНИЕ: СТЕНЫ БАНКА ==================
 local RemovedBankObjects = {}
 
+-- Цели сняты с живой карты (Dex/Inspector). Поиск по ИМЕНИ + ПОЗИЦИИ + РАЗМЕРУ,
+-- поэтому никакие GetChildren()[N] не нужны — сдвиг индексов ничего не ломает.
+-- path — просто справка, откуда взят объект.
+local BANK_WALL_TARGETS = {
+    -- Building: главная стена-стекло
+    { name = "Part",         path = "Building.Part",                                     pos = Vector3.new(165.697, 4.839, -244.741), size = Vector3.new(75, 1.5, 17.5) },
+    -- Building: скрытая стена-барьер под полом (74 x 2.5 x 0.01)
+    { name = "Part",         path = "Building.Part",                                     pos = Vector3.new(165.197, -2.661, -243.966), size = Vector3.new(74, 2.5, 0.01) },
+    -- EscapeC4
+    { name = "default",      path = "EscapeC4.Breakable.Moveable.WallIndicator.default", pos = Vector3.new(120.197, 2.089, -244.500), size = Vector3.new(16, 12, 1) },
+    { name = "SurroundWall", path = "EscapeC4.Ignoreable.SurroundWall",                  pos = Vector3.new(120.196, 0.339, -244.491), size = Vector3.new(16, 15.5, 1) },
+    -- Sewer: SewerPipe1 (два разных меша default внутри одной трубы)
+    { name = "default",      path = "Sewer.SewerPipe1.default",                          pos = Vector3.new(120.267, 0.839, -260.653), size = Vector3.new(13.5, 13.5, 31.5) },
+    { name = "default",      path = "Sewer.SewerPipe1.default",                          pos = Vector3.new(216.656, 0.839, -286.013), size = Vector3.new(13.5, 13.5, 173.5) },
+    -- Sewer: SewerPipe4
+    { name = "default",      path = "Sewer.Model.SewerPipe4.default",                    pos = Vector3.new(120.267, 0.839, -284.528), size = Vector3.new(16.5, 13.5, 19.5) },
+    -- Building.Model: 3 больших сегмента (6 x 1 x 10.5), ряд вдоль Z с шагом 6.5
+    { name = "Part",         path = "Building.Model.Part",                               pos = Vector3.new(202.947, 2.089, -267.491), size = Vector3.new(6, 1, 10.5) },
+    { name = "Part",         path = "Building.Model.Part",                               pos = Vector3.new(202.947, 2.089, -260.991), size = Vector3.new(6, 1, 10.5) },
+    { name = "Part",         path = "Building.Model.Part",                               pos = Vector3.new(202.947, 2.089, -254.491), size = Vector3.new(6, 1, 10.5) },
+    -- Building.Model: 2 тонких сегмента (0.5 x 1.5 x 12)
+    { name = "Part",         path = "Building.Model.Part",                               pos = Vector3.new(202.947, 2.089, -264.241), size = Vector3.new(0.5, 1.5, 12) },
+    { name = "Part",         path = "Building.Model.Part",                               pos = Vector3.new(202.947, 2.089, -257.741), size = Vector3.new(0.5, 1.5, 12) },
+}
+
+local BANK_POS_TOLERANCE = 3.0
+local BANK_SIZE_TOLERANCE = 1.0
+
+local function collectBankWalls()
+    local gameplay = Workspace:FindFirstChild("Gameplay")
+    local bank = gameplay and gameplay:FindFirstChild("Bank")
+    if not bank then return {} end
+
+    -- Группируем всех потомков банка по имени
+    local candidates = {}
+    for _, obj in ipairs(bank:GetDescendants()) do
+        if obj:IsA("BasePart") then
+            local list = candidates[obj.Name]
+            if not list then
+                list = {}
+                candidates[obj.Name] = list
+            end
+            table.insert(list, obj)
+        end
+    end
+
+    local found = {}
+    local seen = {}
+
+    for _, target in ipairs(BANK_WALL_TARGETS) do
+        local best, bestDist = nil, math.huge
+        for _, obj in ipairs(candidates[target.name] or {}) do
+            if not seen[obj] then
+                local posDist = (obj.Position - target.pos).Magnitude
+                local sizeDist = (obj.Size - target.size).Magnitude
+                if posDist <= BANK_POS_TOLERANCE and sizeDist <= BANK_SIZE_TOLERANCE and posDist < bestDist then
+                    best, bestDist = obj, posDist
+                end
+            end
+        end
+        if best then
+            seen[best] = true
+            table.insert(found, best)
+        end
+    end
+
+    return found
+end
+
 local function toggleBankWalls(state)
     if state then
         local removed = 0
-        local toDetach = {}
-
-        local partTargets = {
-            { Size = Vector3.new(75, 1.5, 17.5), Pos = Vector3.new(-236.858, 4.839, -261.628) },
-            { Size = Vector3.new(74, 2.5, 0.01), Pos = Vector3.new(-236.359, -2.661, -262.403) },
-            { Size = Vector3.new(6, 1, 10.5), Pos = Vector3.new(-274.108, 2.089, -251.878) },
-            { Size = Vector3.new(6, 1, 10.5), Pos = Vector3.new(-274.108, 2.089, -245.378) },
-            { Size = Vector3.new(20, 13.5, 0.5), Pos = Vector3.new(-273.608, 1.839, -233.228) },
-            { Size = Vector3.new(6, 1, 10.5), Pos = Vector3.new(-274.108, 2.089, -238.878) },
-        }
-
-        for _, obj in ipairs(Workspace:GetDescendants()) do
-            if obj:IsA("BasePart") then
-                for _, target in ipairs(partTargets) do
-                    local sizeMatch = (obj.Size - target.Size).Magnitude < 0.5
-                    local posMatch = (obj.CFrame.Position - target.Pos).Magnitude < 3.0
-
-                    if sizeMatch and posMatch then
-                        table.insert(toDetach, obj)
-                        break
-                    end
-                end
-            end
-        end
-
-        local bank = Workspace:FindFirstChild("Gameplay") and Workspace.Gameplay:FindFirstChild("Bank")
-        if bank then
-            local building = bank:FindFirstChild("Building")
-            local sewer = building and building:FindFirstChild("Sewer")
-            if sewer then
-                for _, model in ipairs(sewer:GetChildren()) do
-                    if model:IsA("Model") and (model.Name == "SewerPipe1" or model.Name == "SewerPipe4") then
-                        table.insert(toDetach, model)
-                    end
-                end
-            end
-
-            local escapeC4 = bank:FindFirstChild("EscapeC4")
-            if escapeC4 then
-                for _, obj in ipairs(escapeC4:GetDescendants()) do
-                    if obj.Name == "SurroundWall" then
-                        table.insert(toDetach, obj)
-                    end
-                end
-            end
-        end
-
-        for _, obj in ipairs(toDetach) do
+        for _, obj in ipairs(collectBankWalls()) do
             local parent = obj.Parent
             if parent then
                 local ok = pcall(function() obj.Parent = nil end)
@@ -1244,7 +1185,6 @@ local function toggleBankWalls(state)
                 end
             end
         end
-
         return removed
     else
         local restored = 0
@@ -1278,7 +1218,6 @@ end)
 
 local VehicleLoop = RunService.Heartbeat:Connect(function(deltaTime)
     if runDead() then return end
-    -- Клавиша спидхака машины: бинд (дефолт Ctrl, обе стороны)
     if VehicleSpeedEnabled and isBindKeyDown(VehicleSpeedKeyName) then
         local char = LocalPlayer.Character
         local hum = char and char:FindFirstChildOfClass("Humanoid")
@@ -1297,64 +1236,6 @@ local VehicleLoop = RunService.Heartbeat:Connect(function(deltaTime)
         end
     else
         AC_CONFIG.restoreVehicles()
-    end
-end)
-
--- ================== АВТО-РАБОТА (BOXJOB) ==================
-local function moveToTargetForJob(pos)
-    local char = LocalPlayer.Character
-    if not char then return false end
-    local humanoid = char:FindFirstChildOfClass("Humanoid")
-    local rootPart = char:FindFirstChild("HumanoidRootPart")
-
-    if humanoid and rootPart then
-        humanoid:MoveTo(pos)
-
-        local startTime = tick()
-        repeat
-            task.wait(0.1)
-            if not BoxJobEnabled or not BoxJobActiveRoutine then
-                humanoid:MoveTo(rootPart.Position)
-                return false
-            end
-        until (rootPart.Position - pos).Magnitude < 4 or (tick() - startTime) > 10
-
-        return true
-    end
-    return false
-end
-
-task.spawn(function()
-    while BoxJobActiveRoutine and not runDead() do
-        if BoxJobEnabled then
-            local reachedFetch = moveToTargetForJob(FETCH_POS)
-
-            if reachedFetch and BoxJobEnabled and BoxJobActiveRoutine then
-                pcall(function()
-                    local fetchArgs = {
-                        Workspace:WaitForChild("Gameplay"):WaitForChild("BoxJob"):WaitForChild("PromptParts"):WaitForChild("FetchPromptPart")
-                    }
-                    ReplicatedStorage:WaitForChild("__remotes"):WaitForChild("BoxJobService"):WaitForChild("FetchBox"):FireServer(unpack(fetchArgs))
-                end)
-                task.wait(0.5)
-            end
-
-            if BoxJobEnabled and BoxJobActiveRoutine then
-                local reachedDeliver = moveToTargetForJob(DELIVER_POS)
-
-                if reachedDeliver and BoxJobEnabled and BoxJobActiveRoutine then
-                    pcall(function()
-                        local deliverArgs = {
-                            Workspace:WaitForChild("Gameplay"):WaitForChild("BoxJob"):WaitForChild("PromptParts"):WaitForChild("DeliverPromptPart")
-                        }
-                        ReplicatedStorage:WaitForChild("__remotes"):WaitForChild("BoxJobService"):WaitForChild("DeliverBox"):FireServer(unpack(deliverArgs))
-                    end)
-                    task.wait(0.5)
-                end
-            end
-        else
-            task.wait(0.2)
-        end
     end
 end)
 
@@ -1434,8 +1315,6 @@ hardUnload = function()
     EspEnabled = false
     VFlyEnabled = false
     VehicleShiftLockEnabled = false
-    BoxJobEnabled = false
-    BoxJobActiveRoutine = false
     AimbotEnabled = false
     AimbotShowFov = false
     CurrentTarget = nil
@@ -1754,8 +1633,6 @@ local function getSaveData()
         Vehicle = {
             SpeedEnabled = VehicleSpeedEnabled,
             Mode = VehicleSpeedMode,
-            Speed = VehicleAltSpeed,
-            AntiTip = VehicleAltRisky,
             FlySpeed = VFlySpeed,
         },
         Player = {
@@ -1827,8 +1704,6 @@ local function syncUIFromState()
     end
     setSafe(UIRefs.VehicleSpeedToggle, VehicleSpeedEnabled)
     setSafe(UIRefs.VehicleModeDropdown, { modeDisplay(VehicleSpeedMode) })
-    setSafe(UIRefs.VehicleSpeedSlider, VehicleAltSpeed)
-    setSafe(UIRefs.AntiTipToggle, VehicleAltRisky)
     setSafe(UIRefs.FlySpeedSlider, VFlySpeed)
     setSafe(UIRefs.PlayerSpeedToggle, PlayerSpeedEnabled)
     setSafe(UIRefs.PlayerSpeedSlider, PlayerSpeed)
@@ -1851,8 +1726,6 @@ local function applySaveData(data)
     if type(veh) == "table" then
         if type(veh.SpeedEnabled) == "boolean" then VehicleSpeedEnabled = veh.SpeedEnabled end
         if veh.Mode == "Legit" or veh.Mode == "Hard" then VehicleSpeedMode = veh.Mode end
-        if type(veh.Speed) == "number" then VehicleAltSpeed = math.clamp(math.floor(veh.Speed + 0.5), 100, 400) end
-        if type(veh.AntiTip) == "boolean" then VehicleAltRisky = veh.AntiTip end
         if type(veh.FlySpeed) == "number" then VFlySpeed = math.clamp(math.floor(veh.FlySpeed + 0.5), 1, 6) end
     end
 
@@ -1971,18 +1844,6 @@ buildUI = function()
             AC_CONFIG.restoreVehicles()
         end
     })
-    UIRefs.VehicleSpeedSlider = VehicleTab:CreateSlider({
-        Name = t.Speed,
-        Range = { 100, 400 },
-        Increment = 5,
-        CurrentValue = VehicleAltSpeed,
-        Callback = function(v) VehicleAltSpeed = v end
-    })
-    UIRefs.AntiTipToggle = VehicleTab:CreateToggle({
-        Name = t.AntiTip,
-        CurrentValue = VehicleAltRisky,
-        Callback = function(v) VehicleAltRisky = v end
-    })
 
     VehicleTab:CreateSection(t.FlySection)
     UIRefs.FlySpeedSlider = VehicleTab:CreateSlider({
@@ -2044,7 +1905,7 @@ buildUI = function()
     })
     VehicleTab:CreateLabel(t.ShiftLockLabel)
 
-    -- ---------- Combat (Аимбот) ----------
+    -- ---------- Combat ----------
     CombatTab:CreateSection(t.AimbotSection)
     UIRefs.AimbotToggle = CombatTab:CreateToggle({
         Name = t.AimbotToggle,
@@ -2225,21 +2086,6 @@ buildUI = function()
         end
     })
 
-    FunctionsTab:CreateSection(t.JobsSection)
-    FunctionsTab:CreateToggle({
-        Name = t.AutoJob,
-        CurrentValue = BoxJobEnabled,
-        Callback = function(v)
-            BoxJobEnabled = v
-            if not v then
-                local char = LocalPlayer.Character
-                if char and char:FindFirstChildOfClass("Humanoid") then
-                    char:FindFirstChildOfClass("Humanoid"):MoveTo(char.HumanoidRootPart.Position)
-                end
-            end
-        end
-    })
-
     FunctionsTab:CreateSection(t.TrackerSection)
 
     UIRefs.TargetDropdown = FunctionsTab:CreateDropdown({
@@ -2351,7 +2197,6 @@ buildUI = function()
         end
     })
 
-    -- ---------- Настройки: КОНФИГИ ----------
     SettingsTab:CreateSection(t.ConfigSection)
     SettingsTab:CreateParagraph({ Title = t.ConfigSection, Content = t.ConfigInfo })
 
@@ -2495,7 +2340,6 @@ end
 applyAutoLoadIfSet()
 buildUI()
 
--- Опрос флага бинда спидхака (на случай восстановления Rayfield'ом из его конфига)
 task.spawn(function()
     while ScriptActive do
         task.wait(0.5)
