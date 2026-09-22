@@ -92,7 +92,6 @@ local L = {
 
         MovementSection = "Movement",
         PlayerSpeedHack = "SpeedHack [LeftShift]",
-        Speed = "Speed",
 
         NoclipSection = "Noclip",
         NoclipToggle = "Noclip",
@@ -114,9 +113,6 @@ local L = {
         NotifyRestored = "Restored objects: ",
         NotifyInfo = "Info",
         NotifyNotFound = "Objects not found or already removed",
-
-        JobsSection = "Auto",
-        AutoJob = "Auto Job (Boxes)",
 
         TrackerSection = "Player Money Transfer",
         SelectTarget = "Select Target",
@@ -191,7 +187,6 @@ local L = {
 
         MovementSection = "Перемещение",
         PlayerSpeedHack = "Спидхак [LeftShift]",
-        Speed = "Скорость",
 
         NoclipSection = "Ноуклип",
         NoclipToggle = "Ноуклип (сквозь стены)",
@@ -213,9 +208,6 @@ local L = {
         NotifyRestored = "Возвращено объектов: ",
         NotifyInfo = "Информация",
         NotifyNotFound = "Объекты не найдены или уже удалены",
-
-        JobsSection = "Авто",
-        AutoJob = "Авто-работа (Коробки)",
 
         TrackerSection = "Передать деньги игроку",
         SelectTarget = "Выбрать игрока",
@@ -258,6 +250,8 @@ local L = {
         NotifyCopied = "ССЫЛКА СКОПИРОВАНА!",
     }
 }
+
+local UIGeneration = 0
 
 -- Уведомление «только PRO»
 local function proNotify()
@@ -354,8 +348,6 @@ local function blockHardOption(hardDisplay)
     end)
 end
 
-local UIGeneration = 0
-
 -- ================== ПЕРЕМЕННЫЕ ==================
 local PlayerSpeedEnabled = false
 local PlayerSpeed = 1.4
@@ -367,7 +359,6 @@ local VehicleSpeedEnabled = false
 local VehicleSpeedMode = "Legit"
 local VehicleAltSpeed = 200
 
--- Клавиша спидхака машины (по дефолту Ctrl, меняется биндом)
 local VehicleSpeedKeyName = "LeftControl"
 
 local EspEnabled = false
@@ -375,16 +366,11 @@ local EspMaxDistance = 250
 local EspObjects = {}
 
 local VFlyEnabled = false
-local VFlySpeed = 2 -- фикс
+local VFlySpeed = 2
 local VFlyLoop = nil
 
 local VehicleShiftLockEnabled = false
 local ShiftLockLoop = nil
-
-local BoxJobEnabled = false
-local BoxJobActiveRoutine = true
-local FETCH_POS = Vector3.new(-25.368, 17.209, -71.160)
-local DELIVER_POS = Vector3.new(2.932, 17.282, -62.212)
 
 local AimbotEnabled = false
 local AimbotSmoothness = 0.9
@@ -419,7 +405,6 @@ local UIRefs = {
     VehicleSpeedToggle = nil,
     VehicleModeDropdown = nil,
     PlayerSpeedToggle = nil,
-    PlayerSpeedSlider = nil,
     EspToggle = nil,
     EspDistanceSlider = nil,
     SmoothnessSlider = nil,
@@ -988,7 +973,7 @@ ShiftLockConnection = UserInputService.InputBegan:Connect(function(input, gamePr
     end
 end)
 
--- ================== ШЛАГБАУМЫ (доступно всем) ==================
+-- ================== ШЛАГБАУМЫ ==================
 local RemovedGates = {}
 
 local function collectGates()
@@ -1045,7 +1030,7 @@ local function toggleGates(state)
     end
 end
 
--- ================== СТЕНЫ БАНКА [PRO — заглушка] ==================
+-- ================== СТЕНЫ БАНКА ==================
 local function toggleBankWalls(state)
     proNotify()
     return 0
@@ -1086,64 +1071,6 @@ local VehicleLoop = RunService.Heartbeat:Connect(function(deltaTime)
         end
     else
         AC_CONFIG.restoreVehicles()
-    end
-end)
-
--- ================== АВТО-РАБОТА (BOXJOB) ==================
-local function moveToTargetForJob(pos)
-    local char = LocalPlayer.Character
-    if not char then return false end
-    local humanoid = char:FindFirstChildOfClass("Humanoid")
-    local rootPart = char:FindFirstChild("HumanoidRootPart")
-
-    if humanoid and rootPart then
-        humanoid:MoveTo(pos)
-
-        local startTime = tick()
-        repeat
-            task.wait(0.1)
-            if not BoxJobEnabled or not BoxJobActiveRoutine then
-                humanoid:MoveTo(rootPart.Position)
-                return false
-            end
-        until (rootPart.Position - pos).Magnitude < 4 or (tick() - startTime) > 10
-
-        return true
-    end
-    return false
-end
-
-task.spawn(function()
-    while BoxJobActiveRoutine and not runDead() do
-        if BoxJobEnabled then
-            local reachedFetch = moveToTargetForJob(FETCH_POS)
-
-            if reachedFetch and BoxJobEnabled and BoxJobActiveRoutine then
-                pcall(function()
-                    local fetchArgs = {
-                        Workspace:WaitForChild("Gameplay"):WaitForChild("BoxJob"):WaitForChild("PromptParts"):WaitForChild("FetchPromptPart")
-                    }
-                    ReplicatedStorage:WaitForChild("__remotes"):WaitForChild("BoxJobService"):WaitForChild("FetchBox"):FireServer(unpack(fetchArgs))
-                end)
-                task.wait(0.5)
-            end
-
-            if BoxJobEnabled and BoxJobActiveRoutine then
-                local reachedDeliver = moveToTargetForJob(DELIVER_POS)
-
-                if reachedDeliver and BoxJobEnabled and BoxJobActiveRoutine then
-                    pcall(function()
-                        local deliverArgs = {
-                            Workspace:WaitForChild("Gameplay"):WaitForChild("BoxJob"):WaitForChild("PromptParts"):WaitForChild("DeliverPromptPart")
-                        }
-                        ReplicatedStorage:WaitForChild("__remotes"):WaitForChild("BoxJobService"):WaitForChild("DeliverBox"):FireServer(unpack(deliverArgs))
-                    end)
-                    task.wait(0.5)
-                end
-            end
-        else
-            task.wait(0.2)
-        end
     end
 end)
 
@@ -1223,8 +1150,6 @@ hardUnload = function()
     EspEnabled = false
     VFlyEnabled = false
     VehicleShiftLockEnabled = false
-    BoxJobEnabled = false
-    BoxJobActiveRoutine = false
     AimbotEnabled = false
     AimbotShowFov = false
     CurrentTarget = nil
@@ -1463,9 +1388,6 @@ buildUI = function()
     local FunctionsTab = Window:CreateTab(t.FunctionsTab, 4483362458)
     local SettingsTab = Window:CreateTab(t.SettingsTab, 4483362458)
 
-    -- ---------- Main ----------
-    -- Первая строка — Title параграфа: в Rayfield он белый и жирный (как титул),
-    -- остальной текст идёт серым ниже. Секции и второго "Главное" больше нет.
     MainTab:CreateParagraph({
         Title = t.ProTextTitle,
         Content = t.ProTextBody
@@ -1485,7 +1407,6 @@ buildUI = function()
         end
     })
 
-    -- ---------- Vehicle ----------
     VehicleTab:CreateSection(t.VehicleSection)
     UIRefs.VehicleSpeedToggle = VehicleTab:CreateToggle({
         Name = t.VehicleSpeed,
@@ -1539,7 +1460,6 @@ buildUI = function()
         end
     end)
 
-    -- ---------- Vehicle Fly [PRO] ----------
     VehicleTab:CreateSection(t.FlySection .. PRO)
     styleProByTitle(t.FlySection .. PRO, 0.2)
     UIRefs.FlyToggle = VehicleTab:CreateToggle({
@@ -1587,7 +1507,6 @@ buildUI = function()
     })
     VehicleTab:CreateLabel(t.ShiftLockLabel)
 
-    -- ---------- Combat (Аимбот) ----------
     CombatTab:CreateSection(t.AimbotSection)
     UIRefs.AimbotToggle = CombatTab:CreateToggle({
         Name = t.AimbotToggle,
@@ -1652,19 +1571,11 @@ buildUI = function()
         Callback = function(v) AimbotFovRadius = v end
     })
 
-    -- ---------- Player ----------
     PlayerTab:CreateSection(t.MovementSection)
     UIRefs.PlayerSpeedToggle = PlayerTab:CreateToggle({
         Name = t.PlayerSpeedHack,
         CurrentValue = PlayerSpeedEnabled,
         Callback = function(v) PlayerSpeedEnabled = v end
-    })
-    UIRefs.PlayerSpeedSlider = PlayerTab:CreateSlider({
-        Name = t.Speed,
-        Range = { 0, 5 },
-        Increment = 0.1,
-        CurrentValue = PlayerSpeed,
-        Callback = function(v) PlayerSpeed = v end
     })
 
     PlayerTab:CreateSection(t.NoclipSection)
@@ -1686,7 +1597,7 @@ buildUI = function()
         end)
     })
 
-    -- ---------- Click TP [PRO] ----------
+    PlayerTab:CreateSection(t.TeleportSection)
     local clickTPBtn = PlayerTab:CreateButton({
         Name = t.TeleportSection .. PRO,
         Callback = function()
@@ -1695,7 +1606,6 @@ buildUI = function()
     })
     styleProByTitle(t.TeleportSection .. PRO, 0.25)
 
-    -- ---------- Visual ----------
     VisualTab:CreateSection(t.PlayersSection)
     UIRefs.EspToggle = VisualTab:CreateToggle({
         Name = t.PlayerEsp,
@@ -1716,7 +1626,6 @@ buildUI = function()
         end
     })
 
-    -- ---------- Functions ----------
     FunctionsTab:CreateSection(t.DeletionSection)
 
     FunctionsTab:CreateToggle({
@@ -1744,21 +1653,6 @@ buildUI = function()
         end
     })
     styleProByTitle(t.BankWall .. PRO, 0.25)
-
-    FunctionsTab:CreateSection(t.JobsSection)
-    FunctionsTab:CreateToggle({
-        Name = t.AutoJob,
-        CurrentValue = BoxJobEnabled,
-        Callback = function(v)
-            BoxJobEnabled = v
-            if not v then
-                local char = LocalPlayer.Character
-                if char and char:FindFirstChildOfClass("Humanoid") then
-                    char:FindFirstChildOfClass("Humanoid"):MoveTo(char.HumanoidRootPart.Position)
-                end
-            end
-        end
-    })
 
     FunctionsTab:CreateSection(t.TrackerSection)
 
@@ -1860,7 +1754,6 @@ buildUI = function()
         end
     })
 
-    -- ---------- Settings ----------
     SettingsTab:CreateSection(t.MainSection)
     SettingsTab:CreateButton({
         Name = t.Unload,
@@ -1873,7 +1766,6 @@ buildUI = function()
         end
     })
 
-    -- ---------- Configs [PRO] ----------
     SettingsTab:CreateSection(t.ConfigSection)
     styleProByTitle(t.ConfigSection, 0.25)
 
@@ -1933,9 +1825,6 @@ buildUI = function()
         MultipleOptions = false,
         Callback = function(v)
             proNotify()
-            pcall(function()
-                UIRefs.AutoLoadDropdown:Refresh({ t.AutoLoadNone })
-            end)
         end
     })
     styleProByTitle(t.AutoLoadConfig, 0.6)
